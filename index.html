@@ -284,6 +284,16 @@ body.hidezh .exzh,body.hidezh .bzh{display:none!important}
 .obexp{font-size:14px;line-height:1.8;color:#2b2b2b;background:#faf7f2;border-left:3px solid var(--orange);padding:11px 13px;border-radius:8px}
 .obnote{font-size:12.5px;color:var(--muted);margin-top:9px;text-align:center}
 #obNext:disabled{opacity:.4;pointer-events:none}
+.pwq{margin:12px 0 2px;padding:11px 13px;border-radius:12px;background:#f7f2e9;border-left:3px solid var(--orange);text-align:left}
+.pwq .pj{font-size:16px;font-weight:700;line-height:1.5}
+.pwq .pz{font-size:13px;color:var(--muted,#6b6b6b);margin-top:3px}
+.rateask{margin-top:4px;padding:14px 16px;border-radius:14px;background:#fff;border:1.5px solid #e8e0d2;max-width:300px;width:100%;text-align:left}
+.rateask .rq{font-size:15px;font-weight:700;margin-bottom:10px;line-height:1.5}
+.rateask .rbtns{display:flex;gap:8px}
+.rateask .rbtns button{flex:1;padding:10px 6px;border-radius:11px;border:1.5px solid #dfd6c8;background:#fff;font-size:14px;font-weight:700;cursor:pointer;color:inherit}
+.rateask .rbtns button.yes{background:var(--orange);border-color:var(--orange);color:#fff}
+.rateask .rthx{font-size:13px;color:var(--muted,#6b6b6b);line-height:1.7}
+.reviewlink{display:block;margin:12px auto 0;padding:6px;background:none;border:none;cursor:pointer;color:var(--orange);font-weight:700;font-size:13px}
 .tierbox{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0 4px}
 .tier{border:1.5px solid #dfe6ef;border-radius:13px;padding:11px 10px;text-align:center}
 .tier.free{background:#f2f8f2;border-color:#bcdcc0}
@@ -405,6 +415,7 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
         </ul>
         <button class="procta" id="proCardBtn">看看解鎖了有什麼</button>
       </div>
+      <button class="reviewlink hidden" id="reviewBtn">喜歡這個 App？寫個評論 ›</button>
 
     </div>
   </div>
@@ -432,6 +443,15 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
     <h2>今天的份，做完了</h2>
     <div class="doneJp">お つ か れ さ ま</div>
     <p id="doneMsg">今天的複習完成了</p>
+    <div id="rateAsk" class="rateask hidden">
+      <div class="rq">這幾天學得順嗎？</div>
+      <div class="rbtns"><button class="yes" id="rateYes">😊 順，還不錯</button><button id="rateNo">😕 有點卡</button></div>
+      <div class="rthx hidden" id="rateThx">謝謝你說。哪裡卡卡的，寫一句給我：<br><button class="reviewlink" id="fbMail" style="margin:4px 0 0;padding:0">✉️ 寫信告訴 QQ ›</button></div>
+    </div>
+    <div id="reviewNudge" class="rateask hidden">
+      <div class="rq">連續 <span id="rnDays"></span> 天了——一句話幫幫其他學日文的人？</div>
+      <div class="rbtns"><button class="yes" id="rnBtn">✍️ 寫個評論</button><button id="rnSkip">下次</button></div>
+    </div>
     <button class="bigbtn" id="doneBack" style="max-width:240px">回首頁</button>
   </div>
 
@@ -557,8 +577,9 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
   <div id="paywall" class="pw hidden">
     <div class="sheet">
       <div class="grip"></div>
-      <h2>🔍 解鎖 N3 以上的文法解說</h2>
-      <div class="psub">單字、發音、五十音永遠免費——只有中高階的句型解說需要解鎖</div>
+      <h2 id="pwTitle">🔍 解鎖 N3 以上的文法解說</h2>
+      <div class="psub" id="pwSub">單字、發音、五十音永遠免費——只有中高階的句型解說需要解鎖</div>
+      <div class="pwq hidden" id="pwQuote"></div>
       <div class="tierbox">
         <div class="tier free">
           <div class="tt">免費</div>
@@ -1155,7 +1176,25 @@ function paywallCta(){
   const p=(window.WJ_PRICE||'').trim();
   b.textContent = p ? `解鎖完整版　${p}` : '解鎖完整版';
 }
-function openPaywall(){paywallCta();$('#paywall').classList.remove('hidden');}
+/* 付費牆依入口換臉。從例句的 🔍 進來的人想看的是「這一句」，不是抽象的
+   「N3 以上文法解說」——把他剛點的那句擺在最上面，解鎖的東西才是具體的。
+   從首頁 Pro 卡／chip 進來的維持總覽版。onclick 直接綁 openPaywall 時收到的
+   是 Event 物件，沒有 cardId，自然走總覽。 */
+const PW_TITLE='🔍 解鎖 N3 以上的文法解說', PW_SUB='單字、發音、五十音永遠免費——只有中高階的句型解說需要解鎖';
+function openPaywall(ctx){
+  const c=(ctx&&ctx.cardId!=null)?VOCAB.find(x=>x.id==ctx.cardId):null;
+  const q=$('#pwQuote');
+  if(c&&ctx.exKey&&c[ctx.exKey]){
+    const zhKey=ctx.exKey==='ex'?'exzh':'exzh'+ctx.exKey.slice(2);
+    $('#pwTitle').textContent='🔍 這句的文法解說已經備好';
+    $('#pwSub').textContent=`${levelOf(c)} 的句型解說需要解鎖——解鎖後這句，和其他 8,308 句，都看得到`;
+    q.innerHTML=`<div class="pj">${esc(c[ctx.exKey])}</div>`+(c[zhKey]?`<div class="pz">${esc(c[zhKey])}</div>`:'');
+    q.classList.remove('hidden');
+  }else{
+    $('#pwTitle').textContent=PW_TITLE;$('#pwSub').textContent=PW_SUB;q.classList.add('hidden');
+  }
+  paywallCta();$('#paywall').classList.remove('hidden');
+}
 $('#obNext').onclick=()=>{ if(OB_STEP<2){OB_STEP++;renderOb();} else finishOb(); };
 $('#obSkip').onclick=()=>{ LS.set('ja_onboarded',1); $('#onboard').classList.add('hidden'); };
 function closePaywall(){$('#paywall').classList.add('hidden');}
@@ -1221,7 +1260,7 @@ function gramFree(cardId){
    而且新手引導的「完全新手 先學五十音」正好把新用戶第一個丟到這裡。不要畫這顆鈕。 */
 function hasGram(c){ return !!c && levelOf(c)!=='KANA' && !c.my; }
 async function showGram(cardId, exKey){
-  if(!isPro() && !gramFree(cardId)){ openPaywall(); return; }
+  if(!isPro() && !gramFree(cardId)){ openPaywall({cardId, exKey}); return; }
   const body=$('#gramBody');
   $('#grampop').classList.remove('hidden');
   body.innerHTML='<div class="gloading">解析載入中…</div>';
@@ -1638,19 +1677,54 @@ function initSwipe(){
      · 問過就至少隔 120 天，總共最多 3 次
    條件全放在網頁端，因為只有這裡知道連續天數與完成張數。 */
 let RATED = LS.get('ja_rated', {n:0, t:0});
-function maybeAskRating(){
-  if(!(window.webkit&&webkit.messageHandlers&&webkit.messageHandlers.rate)) return;  // 網頁版沒有 App Store
-  if((RATED.n||0) >= 3) return;
-  if(Date.now() - (RATED.t||0) < 120*DAY) return;
-  if((STAT.streak||0) < 3) return;
-  if((STAT.today||0) < 5) return;
-  RATED = {n:(RATED.n||0)+1, t:Date.now()}; LS.set('ja_rated', RATED);
-  try{ webkit.messageHandlers.rate.postMessage(1); }catch(e){}
+let WRV = LS.get('ja_wrv', {t:0});   // 「寫個評論」上次提示時間
+const STORE_REVIEW_URL='https://apps.apple.com/tw/app/id6784779535?action=write-review';
+const FEEDBACK_MAIL='mailto:qqleveragelearning@gmail.com?subject='+encodeURIComponent('単語ノート 哪裡卡卡的');
+/* 開外部連結。WKWebView 沒有 navigationDelegate 時，location= 會把 App 本身導走、
+   window.open 什麼都不做，所以原生走 openurl handler（Swift 端只放行 apps.apple.com 與 mailto）。 */
+function openExternal(url){
+  if(IS_NATIVE){ try{ webkit.messageHandlers.openurl.postMessage(url); }catch(e){} return; }
+  window.open(url,'_blank','noopener');
 }
+/* 兩段式評分：先自己問一句「學得順嗎」，😊 才叫 Apple 的系統彈窗，😕 導去信箱。
+   Apple 一年只給每人 3 次系統彈窗，把它留給已經說了「順」的人；
+   覺得卡的人有地方講，而不是把那口氣寫進 App Store。
+   計數與 120 天間隔在「自己這句」顯示時就記——😕 的人 120 天內也不會再被問。 */
+function maybeAskRating(){
+  if(!IS_NATIVE) return false;   // 網頁版沒有 App Store
+  if((RATED.n||0) >= 3) return false;
+  if(Date.now() - (RATED.t||0) < 120*DAY) return false;
+  if((STAT.streak||0) < 3) return false;
+  if((STAT.today||0) < 5) return false;
+  RATED = {n:(RATED.n||0)+1, t:Date.now()}; LS.set('ja_rated', RATED);
+  $('#rateAsk').classList.remove('hidden');
+  return true;
+}
+$('#rateYes').onclick=()=>{ $('#rateAsk').classList.add('hidden'); try{ webkit.messageHandlers.rate.postMessage(1); }catch(e){} };
+$('#rateNo').onclick=()=>{ $('#rateAsk .rq').classList.add('hidden'); $('#rateAsk .rbtns').classList.add('hidden'); $('#rateThx').classList.remove('hidden'); };
+$('#fbMail').onclick=()=>openExternal(FEEDBACK_MAIL);
+/* 文字評論。系統彈窗只收星星、不收文字；文字評論只能靠這條連結進 App Store。
+   放在連續 7 天的完成畫面——那時他已經證明自己是會回來的人。30 天最多提一次，
+   而且跟「學得順嗎」不會同一次出現：一個畫面只問一件事。 */
+function maybeNudgeReview(){
+  if(!IS_NATIVE) return;
+  if((STAT.streak||0) < 7) return;
+  if(Date.now() - (WRV.t||0) < 30*DAY) return;
+  WRV={t:Date.now()}; LS.set('ja_wrv', WRV);
+  $('#rnDays').textContent=STAT.streak;
+  $('#reviewNudge').classList.remove('hidden');
+}
+$('#rnBtn').onclick=()=>{ $('#reviewNudge').classList.add('hidden'); openExternal(STORE_REVIEW_URL); };
+$('#rnSkip').onclick=()=>$('#reviewNudge').classList.add('hidden');
+$('#reviewBtn').onclick=()=>openExternal(STORE_REVIEW_URL);
+if(IS_NATIVE) $('#reviewBtn').classList.remove('hidden');
 function finishStudy(){$('#study').classList.add('hidden');$('#done').classList.remove('hidden');
   $('#doneArt').innerHTML=ico('m_done',128);
   $('#doneMsg').textContent=`複習了 ${STAT.today} 張 · 連續 ${STAT.streak} 天`;pushWidget();
-  maybeAskRating();}
+  // 完成畫面每次都從乾淨狀態開始：上次若按了 😕，感謝文字不能留到這次
+  $('#rateAsk').classList.add('hidden'); $('#reviewNudge').classList.add('hidden');
+  $('#rateAsk .rq').classList.remove('hidden'); $('#rateAsk .rbtns').classList.remove('hidden'); $('#rateThx').classList.add('hidden');
+  if(!maybeAskRating()) maybeNudgeReview();}
 
 /* ---------- saved example sentences ---------- */
 let curSent=[];
