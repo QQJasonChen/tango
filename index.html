@@ -160,6 +160,9 @@ body{font-family:-apple-system,'Segoe UI','Noto Sans TC',sans-serif;background:v
 .gexplain{font-size:14.5px;line-height:1.85;color:#2b2b2b;background:#faf7f2;border-left:3px solid var(--orange);padding:11px 13px;border-radius:8px;white-space:pre-wrap}
 .gpoints{margin:0;padding-left:18px}
 .gpoints li{font-size:14px;line-height:1.6;margin-bottom:4px}
+.gtaste{display:flex;align-items:center;gap:10px;margin:0 0 12px;padding:10px 12px;border-radius:12px;background:#fff8ee;border:1.5px solid var(--orange);font-size:13px;line-height:1.5}
+.gtaste b{color:var(--orange)}
+.gtaste button{margin-left:auto;flex:none;padding:7px 11px;border:none;border-radius:9px;background:var(--orange);color:#fff;font-size:13px;font-weight:800;cursor:pointer}
 .gloading{text-align:center;color:var(--muted);padding:34px 0;font-size:14px}
 .exgram{background:none;border:none;cursor:pointer;font-size:15px;padding:4px 5px;opacity:.7}
 .gcol{background:none;border:1px solid var(--line);border-radius:8px;cursor:pointer;font-size:11px;padding:2px 8px;color:var(--muted);margin-left:6px;white-space:nowrap;flex:none}
@@ -407,7 +410,7 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
 
       <div class="procard" id="proCard">
         <h3>🔍 AI 句型解說</h3>
-        <div style="font-size:13px;color:#7a4a12;margin-bottom:8px">五十音・N5・N4 免費看　·　N3 以上需解鎖</div>
+        <div style="font-size:13px;color:#7a4a12;margin-bottom:8px">五十音・N5・N4 免費看　·　N3 以上需解鎖<span id="tasteHint" class="hidden">　·　每天免費試看 1 句</span></div>
         <ul>
           <li>每句例句一整段<b>老師口吻的講解</b>：助詞為什麼這樣用、動詞怎麼變</li>
           <li>還會點出<b>學習者最容易搞錯的地方</b></li>
@@ -1187,7 +1190,9 @@ function openPaywall(ctx){
   if(c&&ctx.exKey&&c[ctx.exKey]){
     const zhKey=ctx.exKey==='ex'?'exzh':'exzh'+ctx.exKey.slice(2);
     $('#pwTitle').textContent='🔍 這句的文法解說已經備好';
-    $('#pwSub').textContent=`${levelOf(c)} 的句型解說需要解鎖——解鎖後這句，和其他 8,308 句，都看得到`;
+    $('#pwSub').textContent=(IS_NATIVE&&!isPro()&&tasteLeft()===0)
+      ? `今天的免費試看用完了——明天再來 ${TASTE_PER_DAY} 句，或現在解鎖 N3–N1 共 8,308 句`
+      : `${levelOf(c)} 的句型解說需要解鎖——解鎖後這句，和其他 8,308 句，都看得到`;
     q.innerHTML=`<div class="pj">${esc(c[ctx.exKey])}</div>`+(c[zhKey]?`<div class="pz">${esc(c[zhKey])}</div>`:'');
     q.classList.remove('hidden');
   }else{
@@ -1259,20 +1264,37 @@ function gramFree(cardId){
    所以 92 張卡的 🔍 一按就是「這句的文法解析還在準備中 🙏」——100% 死路，
    而且新手引導的「完全新手 先學五十音」正好把新用戶第一個丟到這裡。不要畫這顆鈕。 */
 function hasGram(c){ return !!c && levelOf(c)!=='KANA' && !c.my; }
+/* 試吃：免費使用者每天可以看 1 句 N3 以上的解說。
+   理由：行銷打的是新手關鍵字，而付費牆在 N3——新手要幾個月後才第一次看到
+   「老師口吻的解說」長什麼樣。沒看過的東西不會想買。每天 1 句讓他第一天就嚐到，
+   付費牆從抽象的「N3 以上」變成「還想再看」。只在 App 內開（網頁版沒有購買路徑，
+   而且網頁版根本沒發 N3+ 的資料）。額度在「真的顯示了解析」之後才扣，
+   資料還沒準備好的那句不算。 */
+const TASTE_PER_DAY=1;
+function tasteState(){ const t=todayStr(); let s=LS.get('ja_taste',null); if(!s||s.d!==t){ s={d:t,n:0}; LS.set('ja_taste',s); } return s; }
+function tasteLeft(){ return isPro()?Infinity:Math.max(0,TASTE_PER_DAY-tasteState().n); }
+function useTaste(){ if(isPro())return; const s=tasteState(); s.n++; LS.set('ja_taste',s); }
+function canTaste(){ return IS_NATIVE && !isPro() && tasteLeft()>0; }
+/* 🔍 要不要畫成鎖：付費級但今天還有試吃額度 → 畫成可按的 🔍，不然新手永遠只看到 🔒 */
+function gramLocked(c){ return !isPro() && !gramFree(c.id) && !canTaste(); }
 async function showGram(cardId, exKey){
-  if(!isPro() && !gramFree(cardId)){ openPaywall({cardId, exKey}); return; }
+  const paidLevel=!isPro() && !gramFree(cardId);
+  if(paidLevel && !canTaste()){ openPaywall({cardId, exKey}); return; }
   const body=$('#gramBody');
   $('#grampop').classList.remove('hidden');
   body.innerHTML='<div class="gloading">解析載入中…</div>';
   const g=await loadGrammar();
   const d=(g[cardId]||{})[exKey];
   if(!d){ body.innerHTML='<div class="gloading">這句的文法解析還在準備中 🙏</div>'; return; }
+  let taste='';
+  if(paidLevel){ useTaste();
+    taste=`<div class="gtaste"><span>🍡 <b>今天的免費試看</b>（${TASTE_PER_DAY} 句／天）<br>想每句都看？解鎖後 N3–N1 共 8,308 句</span><button onclick="$('#grampop').classList.add('hidden');openPaywall({cardId:${cardId},exKey:'${exKey}'})">解鎖</button></div>`; }
   GRAM_WORDS=d.words||[];
   const srcCard=VOCAB.find(c=>c.id==cardId);
   GRAM_SRC=srcCard?{nl:srcCard[exKey],zh:srcCard[exKey==='ex'?'exzh':'exzh'+exKey.slice(2)]}:{};
   const words=GRAM_WORDS.map((w,i)=>{const on=gramWordCollected(w.base||w.w,w.w);return `<div class="gw"><div class="gwtop"><b>${esc(w.w)}</b>${w.base&&w.base!==w.w?`<span class="gbase">${esc(w.base)}</span>`:''}${w.pos?`<span class="gpos">${esc(w.pos)}</span>`:''}<button class="gcol ${on?'on':''}" onclick="gcolToggle(${i},this)">${on?'★ 已收藏':'☆ 收藏'}</button></div>${w.zh?`<div class="gwzh">${esc(w.zh)}</div>`:''}${w.note?`<div class="gnote">${esc(w.note)}</div>`:''}</div>`;}).join('');
   const points=(d.points||[]).map(p=>`<li>${esc(p)}</li>`).join('');
-  body.innerHTML=(d.structure?`<div class="gsec">句型結構</div><div class="gstruct">${esc(d.structure)}</div>`:'')
+  body.innerHTML=taste+(d.structure?`<div class="gsec">句型結構</div><div class="gstruct">${esc(d.structure)}</div>`:'')
     +(d.trans?`<div class="gtrans">${esc(d.trans)}</div>`:'')
     +(d.explain?`<div class="gsec">句型解說</div><div class="gexplain">${esc(d.explain)}</div>`:'')
     +(words?`<div class="gsec">逐詞拆解</div>${words}`:'')
@@ -1520,7 +1542,7 @@ function revealBack(autoRate,extraTop){
   const {card}=QUEUE[qi];
   const exs=[['e',card.ex,card.exzh,card.exr],['e2',card.ex2,card.exzh2,card.exr2],['e3',card.ex3,card.exzh3,card.exr3],['e4',card.ex4,card.exzh4,card.exr4],['e5',card.ex5,card.exzh5,card.exr5]].filter(x=>x[1]);
   const showEx = exs.length>0;
-  const exItem=([k,nl,zh,rb])=>`<div class="ex"><div class="extext"><span class="exnl" data-pl="${esc(nl).replace(/"/g,'&quot;')}" data-rb="${esc(rb||'').replace(/"/g,'&quot;')}">${exBody(nl,rb)}</span><span class="exzh">${esc(zh||'')}</span></div><button class="exbk ${EXSTAR.has(card.id+':'+k)?'on':''}" title="收藏這句" onclick="event.stopPropagation();toggleExStar(${card.id},'${k}');this.classList.toggle('on')">${I_BK}</button>${GRAMMAR_FILE&&hasGram(card)?`<button class="exgram${(!isPro()&&!gramFree(card.id))?' locked':''}" title="${(!isPro()&&!gramFree(card.id))?'N3 以上的文法解說需解鎖':'文法解析'}" onclick="event.stopPropagation();showGram(${card.id},'${k==='e'?'ex':'ex'+k.slice(1)}')">${(!isPro()&&!gramFree(card.id))?I_LOCK:I_GRAM}</button>`:''}${HAS_AUDIO&&!card.my?`<button class="exaud" onclick="event.stopPropagation();play('${k}',${card.id})">${I_SPK}</button>`:''}</div>`;
+  const exItem=([k,nl,zh,rb])=>`<div class="ex"><div class="extext"><span class="exnl" data-pl="${esc(nl).replace(/"/g,'&quot;')}" data-rb="${esc(rb||'').replace(/"/g,'&quot;')}">${exBody(nl,rb)}</span><span class="exzh">${esc(zh||'')}</span></div><button class="exbk ${EXSTAR.has(card.id+':'+k)?'on':''}" title="收藏這句" onclick="event.stopPropagation();toggleExStar(${card.id},'${k}');this.classList.toggle('on')">${I_BK}</button>${GRAMMAR_FILE&&hasGram(card)?`<button class="exgram${gramLocked(card)?' locked':''}" title="${gramLocked(card)?'N3 以上的文法解說需解鎖':'文法解析'}" onclick="event.stopPropagation();showGram(${card.id},'${k==='e'?'ex':'ex'+k.slice(1)}')">${gramLocked(card)?I_LOCK:I_GRAM}</button>`:''}${HAS_AUDIO&&!card.my?`<button class="exaud" onclick="event.stopPropagation();play('${k}',${card.id})">${I_SPK}</button>`:''}</div>`;
   let exHtml='';
   if(exs.length){
     curExs=exs.map(x=>x[0]); curCardId=card.id;
@@ -1717,7 +1739,7 @@ function maybeNudgeReview(){
 $('#rnBtn').onclick=()=>{ $('#reviewNudge').classList.add('hidden'); openExternal(STORE_REVIEW_URL); };
 $('#rnSkip').onclick=()=>$('#reviewNudge').classList.add('hidden');
 $('#reviewBtn').onclick=()=>openExternal(STORE_REVIEW_URL);
-if(IS_NATIVE) $('#reviewBtn').classList.remove('hidden');
+if(IS_NATIVE){ $('#reviewBtn').classList.remove('hidden'); $('#tasteHint').classList.remove('hidden'); }
 function finishStudy(){$('#study').classList.add('hidden');$('#done').classList.remove('hidden');
   $('#doneArt').innerHTML=ico('m_done',128);
   $('#doneMsg').textContent=`複習了 ${STAT.today} 張 · 連續 ${STAT.streak} 天`;pushWidget();
@@ -1844,7 +1866,7 @@ function browseDetail(c){
      （沒有 data-rb 就不會被 toggleFuri 重畫）。查生字正是最需要看讀音的地方，
      而 App Store 描述寫的是「每一句例句都有振假名」。所以改成跟學習卡片同一套 exBody。
      解說鈕也一併對齊：N3 以上要顯示 🔒，不能點下去才知道要付錢（QQ 2026-08-02 拍板）。 */
-  const locked=(!isPro()&&!gramFree(c.id));
+  const locked=gramLocked(c);
   const exs=[['e',c.ex,c.exzh,c.exr],['e2',c.ex2,c.exzh2,c.exr2],['e3',c.ex3,c.exzh3,c.exr3],['e4',c.ex4,c.exzh4,c.exr4],['e5',c.ex5,c.exzh5,c.exr5]].filter(x=>x[1]);
   const exHtml=exs.length?exs.map(([k,nl,zh,rb])=>`<div class="ex"><div class="extext"><span class="exnl" data-pl="${esc(nl).replace(/"/g,'&quot;')}" data-rb="${esc(rb||'').replace(/"/g,'&quot;')}">${exBody(nl,rb)}</span><span class="exzh">${esc(zh||'')}</span></div>`
       +(GRAMMAR_FILE&&hasGram(c)?`<button class="exgram${locked?' locked':''}" title="${locked?'N3 以上的文法解說需解鎖':'文法解析'}" onclick="event.stopPropagation();showGram(${c.id},'${k==='e'?'ex':'ex'+k.slice(1)}')">${locked?I_LOCK:I_GRAM}</button>`:'')+(HAS_AUDIO&&!c.my?`<button class="exaud" onclick="event.stopPropagation();play('${k}',${c.id})">${I_SPK}</button>`:'')+`</div>`).join('')
