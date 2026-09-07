@@ -469,7 +469,7 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
 
 
       <div class="procard" id="proCard">
-        <h3>🔍 AI 句型解說</h3>
+        <h3>🔍 句型解說</h3>
         <div style="font-size:13px;color:#7a4a12;margin-bottom:8px">五十音・N5・N4 免費看　·　N3 以上需解鎖<span id="tasteHint" class="hidden">　·　每天免費試看 <span class="n-taste">1</span> 句</span></div>
         <ul>
           <li>每句例句一整段<b>老師口吻的講解</b>：助詞為什麼這樣用、動詞怎麼變</li>
@@ -599,7 +599,7 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
     <div class="sheet">
       <button class="sheetx" id="gramCloseX" aria-label="關閉">✕</button>
       <div class="grip"></div>
-      <h2 style="margin-bottom:2px">🔍 文法解析</h2>
+      <h2 style="margin-bottom:2px">🔍 文法解說</h2>
       <div id="gramTasteLine" class="gtasteline hidden"></div>
       <div id="gramBody" class="grambody"></div>
       <button class="closex" id="gramClose">關閉</button>
@@ -611,7 +611,7 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
     <div class="sheet">
       <div class="grip"></div>
       <h2 style="margin-bottom:2px">📤 匯出收藏</h2>
-      <div class="psub">收藏單字 ⭐（含解析收藏的生字）＋ 收藏句 🔖，可複製或寄到 Email</div>
+      <div class="psub">收藏單字 ⭐（含解說裡收藏的生字）＋ 收藏句 🔖，可複製或寄到 Email</div>
       <div class="seg" id="exFmtSeg" style="margin:10px 0">
         <button data-fmt="md" class="on">📝 Markdown</button>
         <button data-fmt="notion">📋 Notion 表格</button>
@@ -783,11 +783,9 @@ function nativeIAP(action){
   try{ if(window.webkit&&webkit.messageHandlers&&webkit.messageHandlers.iap){webkit.messageHandlers.iap.postMessage(action);return true;} }catch(e){}
   return false;
 }
-/* free users get 20 example/sentence reveals per day; Pro = unlimited */
-const FREE_SENT=20;
-function sentState(){const t=new Date(Date.now()).toISOString().slice(0,10);let s=JSON.parse(localStorage.getItem('ja_sent')||'null');if(!s||s.d!==t){s={d:t,n:0};localStorage.setItem('ja_sent',JSON.stringify(s));}return s;}
-function sentLeft(){return isPro()?Infinity:Math.max(0,FREE_SENT-sentState().n);}
-function useSent(){if(isPro())return;const s=sentState();s.n++;localStorage.setItem('ja_sent',JSON.stringify(s));}
+/* 這裡原本有日文版的「免費每天 20 句例句」計數（FREE_SENT／sentState／sentLeft／useSent）。
+   日文版單字與造句全免費，只有 N3 以上的文法解說要付費，所以那組函式沒有任何呼叫點；
+   而且它用 toISOString() 算日界＝UTC，正是 todayStr 上面那段註解修掉的坑。整組刪除。 */
 
 /* ---------- state ---------- */
 let SRS = LS.get('ja_srs', {});
@@ -1471,7 +1469,7 @@ function exOpsRow(card, k){
     hasGramBtn=true;
     const gkey=card.id+':'+exKey;
     const locked=gramLocked(card,gkey);
-    btns+=`<button class="exopbtn gram${locked?' locked':''}" data-gcard="${card.id}" data-gkey="${exKey}" title="${locked?'N3 以上的文法解說需解鎖':'文法解析'}" onclick="event.stopPropagation();showGram(${card.id},'${exKey}')">${gramBtnLabel(card,exKey)}</button>`;
+    btns+=`<button class="exopbtn gram${locked?' locked':''}" data-gcard="${card.id}" data-gkey="${exKey}" title="${locked?'N3 以上的文法解說需解鎖':'文法解說'}" onclick="event.stopPropagation();showGram(${card.id},'${exKey}')">${gramBtnLabel(card,exKey)}</button>`;
   }
   if(HAS_AUDIO&&!card.my){
     btns+=`<button class="exopbtn exsnd" onclick="event.stopPropagation();play('${k}',${card.id})">🔊 發音</button>`;
@@ -1495,7 +1493,7 @@ function refreshGramButtons(){
     const card=cardById(cardId); if(!card) return;
     const locked=gramLocked(card,cardId+':'+exKey,st);
     btn.classList.toggle('locked',locked);
-    btn.title = locked?'N3 以上的文法解說需解鎖':'文法解析';
+    btn.title = locked?'N3 以上的文法解說需解鎖':'文法解說';
     btn.textContent = gramBtnLabel(card,exKey,st);
   });
 }
@@ -1529,7 +1527,7 @@ async function showGram(cardId, exKey){
   refreshGramButtons();
   const body=$('#gramBody');
   $('#grampop').classList.remove('hidden');
-  body.innerHTML='<div class="gloading">解析載入中…</div>';
+  body.innerHTML='<div class="gloading">解說載入中…</div>';
   // C2：進 loading 就先清掉上一句留下的試看資訊，不然開免費句或載入失敗時會留著上一句的數字。
   $('#gramTasteLine').classList.add('hidden'); $('#gramTasteLine').textContent='';
   const g=await loadGrammar();
@@ -1541,8 +1539,8 @@ async function showGram(cardId, exKey){
   if(!d){
     if(TASTE_RES[key]===req){ delete TASTE_RES[key]; refreshGramButtons(); }
     body.innerHTML=GRAMMAR_FAILED
-      ? '<div class="gloading">解析載入失敗，請檢查網路後<br><button class="reviewlink" style="margin:8px auto 0" onclick="showGram('+cardId+',\''+exKey+'\')">再試一次</button></div>'
-      : '<div class="gloading">這句的文法解析還在準備中 🙏</div>';
+      ? '<div class="gloading">解說載入失敗，請檢查網路後<br><button class="reviewlink" style="margin:8px auto 0" onclick="showGram('+cardId+',\''+exKey+'\')">再試一次</button></div>'
+      : '<div class="gloading">這句的文法解說還在準備中 🙏</div>';
     return;
   }
   if(TASTE_RES[key]===req){ delete TASTE_RES[key]; if(!isPro()&&!gramFree(cardId)) commitTaste(key); }   // 成功顯示＝提交到 storage
@@ -1640,7 +1638,7 @@ function buildExport(fmt){
       sents.forEach(s=>{ n+='| '+pipe(s.nl)+' | '+pipe(s.zh)+' |\n'; }); }
     return n;
   }
-  const today=new Date().toISOString().slice(0,10);
+  const today=todayStr();   // 不可用 toISOString（UTC）：台灣要到早上 8 點才換日
   let out='# 単語ノート 收藏 · '+today+'\n';
   if(words.length){ out+='\n## ⭐ 單字 ('+words.length+')\n';
     words.forEach(c=>{ out+='- **'+c.nl+'**'+(c.pos?' _('+c.pos+')_':'')+(c.zh?' — '+c.zh:'')+'\n'; if(c.ex)out+='  - '+c.ex+(c.exzh?' — '+c.exzh:'')+'\n'; }); }
@@ -1840,10 +1838,9 @@ function showCard(){
   $('#undoBtn').classList.toggle('hidden',!lastSnap);
   const posMap={noun:'名詞',verb:'動詞',adj:'形容詞',adv:'副詞',prep:'介詞',pron:'代詞',conj:'連接詞',num:'數詞',other:''};
   const dir=CFG.dir,posL=posMap[card.pos]||'';
-  /* 這裡原本擋「今日免費造句已用完」，但 useSent() 全檔沒有任何呼叫點——
-     計數器永遠不會增加，所以這個閘只可能對「從舊版升上來、localStorage 還留著舊計數」
-     的人誤觸發，而且畫面會顯示一條早就不存在的規則（免費每天 20 句）。
-     日文版的商業模式是：單字與造句全免費，只有 N3 以上的文法解說要付費。 */
+  /* 這裡原本擋「今日免費造句已用完」。日文版單字與造句全免費，只有 N3 以上的文法解說
+     要付費，那個閘只會對「從舊版升上來、localStorage 還留著舊計數」的人誤觸發，
+     並顯示一條早就不存在的規則。閘與計數器都已移除。 */
   let front;
   const hint=taskHintHtml(card);
   if(dir==='z2n'){front=`<span class="cefr">${lvBadge(card)}</span><div class="zhbig">${esc(card.zh)}</div>${hint}`;}
