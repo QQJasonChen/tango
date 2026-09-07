@@ -218,14 +218,18 @@ body{font-family:-apple-system,'Segoe UI','Noto Sans TC',sans-serif;background:v
 .starbtn.on{background:#fff4e6;border-color:var(--orange);color:var(--orange)}
 .exmore{display:block;width:100%;border:none;background:var(--bg);color:var(--blue);font-weight:700;font-size:13px;border-radius:10px;padding:10px;margin-top:8px;cursor:pointer}
 .exmore:active{transform:scale(.98)}
-/* 卡片下方的小工具：一排三格，不是三條滿版橫槓 */
-.extools{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
-.extool{display:flex;align-items:center;justify-content:center;gap:4px;border:none;
-  background:var(--bg);color:var(--blue);font-weight:700;font-size:12.5px;
-  border-radius:10px;padding:10px 4px;cursor:pointer;white-space:nowrap}
+/* 卡片下方的例句工具列：不管幾顆都排成一排等寬（原本固定三格，第四顆「隱藏中文」
+   會自己掉到第二行）。動作（連播、語速）藍字；開關（假名、中文）用狀態表示：
+   開＝淡藍底＋眼睛、關＝灰底＋劃掉的眼睛——原本「假名標註：開」卻畫劃掉的眼睛，語意是反的。 */
+.extools{display:flex;gap:6px;margin-top:10px}
+.extool{flex:1 1 0;min-width:0;display:flex;align-items:center;justify-content:center;gap:4px;border:1.5px solid transparent;
+  background:var(--bg);color:var(--blue);font-weight:700;font-size:12.5px;min-height:38px;
+  border-radius:11px;padding:0 4px;cursor:pointer;white-space:nowrap}
+.extool.tog{color:var(--muted)}
+.extool.tog.on{background:#eef4fb;color:var(--blue);border-color:#d5e3f3}
 .extool:active{transform:scale(.97)}
 .extool svg{flex:none}
-.exmore,.furibtn{display:flex;align-items:center;justify-content:center;gap:6px}
+.exmore{display:flex;align-items:center;justify-content:center;gap:6px}
 .ex .exzh{color:var(--muted);font-size:13px;display:block;margin-top:3px}
 .aud{display:inline-flex;align-items:center;justify-content:center;width:46px;height:46px;border:none;background:#eef4fb;color:var(--blue);border-radius:50%;font-size:20px;cursor:pointer;margin:14px auto 0}
 .aud:active{transform:scale(.9)} .aud.lg{width:54px;height:54px;font-size:24px}
@@ -976,11 +980,12 @@ function exSpeed(){return CFG.exSpeed||1;}
 /* 語速：原本用 ⚡/🐢/🔊 三個 emoji 表示快慢，三顆的視覺重量完全不同、也看不出是同一組。
    改成一個播放 icon + 數字，速度本來就寫在字上。 */
 function exSpeedLabel(){return I_SPK+' 語速 '+exSpeed()+'×';}
+function exSpeedShort(){return I_SPK+exSpeed()+'×';}   // 卡背工具列：四顆並排放不下「語速」兩個字，數字＋× 本身就說明了
 function cycleExSpeed(){
   if(BLAST_ACTIVE) return;
   const i=EX_SPEEDS.indexOf(exSpeed());
   CFG.exSpeed=EX_SPEEDS[(i+1)%EX_SPEEDS.length];LS.set('ja_cfg',CFG);
-  document.querySelectorAll('.spdbtn').forEach(b=>b.innerHTML=exSpeedLabel());
+  document.querySelectorAll('.spdbtn').forEach(b=>b.innerHTML=b.classList.contains('extool')?exSpeedShort():exSpeedLabel());
   if(AUD&&!AUD.paused)AUD.playbackRate=0.92*exSpeed();   // 播到一半也即時變速
 }
 /* 發音 100% 走 CDN 串流（App 內沒有 mp3）。離線或 CDN 出問題時，
@@ -1055,7 +1060,7 @@ function toggleFuri(){
     const rb=el.dataset.rb, pl=el.dataset.pl;
     if(rb) el.innerHTML = on ? rubyHtml(rb) : linkifyEx(pl||'');
   });
-  document.querySelectorAll('.furibtn').forEach(b=>b.innerHTML = (on?I_EYEX:I_EYE)+'假名標註：'+(on?'開':'關'));
+  document.querySelectorAll('.furibtn').forEach(b=>{ b.classList.toggle('on',on); b.setAttribute('aria-pressed',on); b.innerHTML=(on?I_EYE:I_EYEX)+'假名'; });
 }
 
 function linkifyEx(text){
@@ -1936,13 +1941,13 @@ function revealBack(autoRate,extraTop){
        提示反而先落在使用者根本看不到的 #moreExWrap 裡。 */
     const visibleHtml=exs.slice(0,2).map(exItem).join('');
     const restHtml=rest.length?`<div id="moreExWrap" class="hidden">${rest.map(exItem).join('')}</div><button class="exmore" onclick="event.stopPropagation();document.getElementById('moreExWrap').classList.remove('hidden');this.remove();refreshGramButtons();">▾ 看更多例句（還有 ${rest.length} 句）</button>`:'';
-    const playAll=(HAS_AUDIO&&!card.my&&exs.length>1)?`<button class="extool" onclick="event.stopPropagation();playExamples()">${I_SPK}連播</button>`:'';
-    const spdBtn=(HAS_AUDIO&&!card.my)?`<button class="extool spdbtn" onclick="event.stopPropagation();cycleExSpeed()">${exSpeedLabel()}</button>`:'';
+    const playAll=(HAS_AUDIO&&!card.my&&exs.length>1)?`<button class="extool" title="連播全部例句" onclick="event.stopPropagation();playExamples()">${I_SPK}連播</button>`:'';
+    const spdBtn=(HAS_AUDIO&&!card.my)?`<button class="extool spdbtn" title="例句語速" onclick="event.stopPropagation();cycleExSpeed()">${exSpeedShort()}</button>`:'';
     /* 振假名開關：只在這張卡真的有振假名資料時才出現，免得按了沒反應 */
-    const furiBtn=exs.some(x=>x[3])?`<button class="extool furibtn" onclick="event.stopPropagation();toggleFuri()">${CFG.furi!==false?I_EYEX+'假名標註：開':I_EYE+'假名標註：關'}</button>`:'';
+    const furiBtn=exs.some(x=>x[3])?`<button class="extool tog furibtn ${CFG.furi!==false?'on':''}" aria-pressed="${CFG.furi!==false}" title="假名標註" onclick="event.stopPropagation();toggleFuri()">${CFG.furi!==false?I_EYE:I_EYEX}假名</button>`:'';
     /* 「隱藏中文翻譯（閱讀沉浸）」原本在首頁，但它只影響例句翻譯（.exzh），跟假名標註／
        語速一樣是「看例句時」才有意義的設定，搬到卡背例句工具列跟它們並排才對。 */
-    const hzBtn=`<button class="extool hzbtn" onclick="event.stopPropagation();toggleHideZh()">${CFG.hideZh?I_EYE+'顯示中文':I_EYEX+'隱藏中文'}</button>`;
+    const hzBtn=`<button class="extool tog hzbtn ${CFG.hideZh?'':'on'}" aria-pressed="${!CFG.hideZh}" title="顯示中文翻譯" onclick="event.stopPropagation();toggleHideZh()">${CFG.hideZh?I_EYEX:I_EYE}中文</button>`;
     const tools=`<div class="extools">${playAll}${spdBtn}${furiBtn}${hzBtn}</div>`;
     exHtml=visibleHtml+restHtml+tools;
   }
@@ -2734,7 +2739,7 @@ function applyHideZh(){document.body.classList.toggle('hidezh',!!CFG.hideZh);}
 /* 按鈕現在在卡背例句工具列（跟假名標註同一套「只重畫按鈕文字」寫法），不用整頁重來。 */
 function toggleHideZh(){
   CFG.hideZh=!CFG.hideZh; LS.set('ja_cfg',CFG); applyHideZh();
-  document.querySelectorAll('.hzbtn').forEach(b=>b.innerHTML=(CFG.hideZh?I_EYE+'顯示中文':I_EYEX+'隱藏中文'));
+  document.querySelectorAll('.hzbtn').forEach(b=>{ const on=!CFG.hideZh; b.classList.toggle('on',on); b.setAttribute('aria-pressed',on); b.innerHTML=(on?I_EYE:I_EYEX)+'中文'; });
 }
 applyHideZh();
 renderHome();
