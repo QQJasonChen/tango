@@ -343,7 +343,7 @@ body.hidezh #study .exzh{display:none!important}
 .bwrong{color:var(--orange);font-weight:700}
 .blastbtn{display:block;margin:10px auto 0;padding:9px 16px;border-radius:12px;border:1.5px solid var(--orange);background:#fff8ee;color:var(--orange);font-weight:800;font-size:14px;cursor:pointer}
 .blastbtn small{font-weight:500;color:var(--muted);margin-left:4px}
-@media (prefers-reduced-motion: reduce){.bprog i{transition:none}.bstamp{transform:none}}
+@media (prefers-reduced-motion: reduce){.bprog i{transition:none}.bstamp{transform:none}.card.pop,.card{animation:none!important;transition:none!important}}
 .pwq{margin:12px 0 2px;padding:11px 13px;border-radius:12px;background:#f7f2e9;border-left:3px solid var(--orange);text-align:left}
 .pwq .pj{font-size:16px;font-weight:700;line-height:1.5}
 .pwq .pz{font-size:13px;color:var(--muted,#6b6b6b);margin-top:3px}
@@ -965,7 +965,9 @@ function schedule(id,rating){
   if((s.reps||0)>=2) s.lapses=(s.lapses||0)+1;s.reps=0;s.ease=Math.max(1.3,(s.ease||2.5)-0.2);s.interval=0;s.due=now()+60000;}else{if((s.reps||0)===0)s.interval=rating===2?3:1;else if(s.reps===1)s.interval=rating===2?6:3;else s.interval=Math.max(1,Math.round(s.interval*(s.ease||2.5)*(rating===2?1.3:1)));s.ease=Math.min(3,(s.ease||2.5)+(rating===2?0.15:0));s.reps=(s.reps||0)+1;s.due=now()+s.interval*DAY;}srsSet(id,s);cloudSave();}
 
 /* ---------- audio ---------- */
-let AUD=null,curExs=[],curCardId=null,AUTOPLAY_T=null,AUDIO_GEN=0;   // AUDIO_GEN：任何一種原卡播放的世代，爆記開始／離頁時 +1，舊回呼一律失效
+let AUD=null,curExs=[],curCardId=null,AUTOPLAY_T=null,AUDIO_GEN=0;   // AUDIO_GEN：任何一種播放的世代；離頁／換卡／新播放／爆記開始都 +1，舊回呼一律失效
+/* 所有離頁與換卡都走這裡：作廢舊世代、清自動播放、停音、拆 handlers。不依賴 BLAST_ACTIVE。 */
+function stopAllAudio(){ AUDIO_GEN++; if(AUTOPLAY_T){clearTimeout(AUTOPLAY_T);AUTOPLAY_T=null;} try{ if(AUD){ AUD.pause(); AUD.onended=null; AUD.onerror=null; AUD.onplaying=null; AUD.onloadedmetadata=null; AUD.onwaiting=null; AUD.onstalled=null; } }catch(e){} }
 /* 例句語速：全域設定循環 1× → 1.25× → 1.5× → 0.7× → 0.85× → 1×，存 ja_cfg；只影響例句，單字發音不變 */
 const EX_SPEEDS=[0.7,0.85,1,1.25,1.5];
 function exSpeed(){return CFG.exSpeed||1;}
@@ -993,9 +995,9 @@ const AUDFAILMSG='🔇 發音載入失敗，請確認網路連線';
    那不是網路問題，新的音檔正在正常播。把這種拒絕當失敗會跳出假警報。
    NotAllowedError 是瀏覽器擋自動播放，也不該說成網路問題。 */
 function realAudioFail(e){ const n=e&&e.name; return n!=='AbortError' && n!=='NotAllowedError'; }
-function play(kind,id){if(BLAST_ACTIVE)return;if(!HAS_AUDIO||id>=MYCARD_BASE)return;if(!AUD)AUD=new Audio();AUD.onended=null;AUD.src=`${audioBase(id)}audio/${kind}_${id}.mp3`;AUD.playbackRate=kind==='w'?0.95:0.92*exSpeed();AUD.play().catch(e=>{if(realAudioFail(e))audioToast(AUDFAILMSG);});}
+function play(kind,id){if(BLAST_ACTIVE)return;if(!HAS_AUDIO||id>=MYCARD_BASE)return;if(!AUD)AUD=new Audio();const _g=++AUDIO_GEN;AUD.onended=null;AUD.src=`${audioBase(id)}audio/${kind}_${id}.mp3`;AUD.playbackRate=kind==='w'?0.95:0.92*exSpeed();AUD.play().catch(e=>{if(AUDIO_GEN!==_g)return;if(realAudioFail(e))audioToast(AUDFAILMSG);});}
 /* 連播遇到壞檔要跳過繼續，不是整串停掉（停掉看起來就像「播到一半自己斷了」）。 */
-function playExamples(){if(BLAST_ACTIVE)return;if(!HAS_AUDIO||!curExs.length||curCardId>=MYCARD_BASE)return;if(!AUD)AUD=new Audio();let i=0,fails=0;const _g=AUDIO_GEN;const next=()=>{if(BLAST_ACTIVE||AUDIO_GEN!==_g)return;if(i>=curExs.length){AUD.onended=null;if(fails)audioToast(AUDFAILMSG);return;}AUD.src=`${audioBase(curCardId)}audio/${curExs[i]}_${curCardId}.mp3`;AUD.playbackRate=0.92*exSpeed();i++;AUD.onended=next;AUD.play().catch(e=>{if(realAudioFail(e))fails++;next();});};next();}
+function playExamples(){if(BLAST_ACTIVE)return;if(!HAS_AUDIO||!curExs.length||curCardId>=MYCARD_BASE)return;if(!AUD)AUD=new Audio();let i=0,fails=0;const _g=++AUDIO_GEN,_cid=curCardId,_list=curExs.slice();const next=()=>{if(BLAST_ACTIVE||AUDIO_GEN!==_g)return;if(i>=_list.length){AUD.onended=null;if(fails)audioToast(AUDFAILMSG);return;}AUD.src=`${audioBase(_cid)}audio/${_list[i]}_${_cid}.mp3`;AUD.playbackRate=0.92*exSpeed();i++;AUD.onended=next;AUD.play().catch(e=>{if(realAudioFail(e))fails++;next();});};next();}
 
 /* ---------- helpers ---------- */
 function esc(s){return (s||'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
@@ -1664,6 +1666,7 @@ $('#restoreBtn').onclick=()=>{ if(!nativeIAP('restore')){ alert('請在 iOS App 
 let themeExpanded=false;   // 主題「查看全部」展開狀態，不必持久化，重開只回到收合預設
 function renderHome(){
   if(BLAST_ACTIVE) blastAbort('leave');
+  stopAllAudio();
   $('#home').classList.remove('hidden');$('#study').classList.add('hidden');$('#done').classList.add('hidden');
   $('#sentences').classList.add('hidden');$('#browse').classList.add('hidden');
   const pro=isPro();
@@ -1807,6 +1810,8 @@ function startStudy(){buildQueue();exSeen=new Set();if(!QUEUE.length)return rend
 function skipCard(){qi++;showCard();}
 function showCard(){
   if(BLAST_ACTIVE) blastAbort('leave');
+  stopAllAudio();
+  CARD_SHOWN_T=Date.now(); CARD_REVEAL_T=0; RATE_META={shownT:CARD_SHOWN_T,revealT:0,firstT:0,firstOk:null,judge:null,hint:false};
   if(qi>=QUEUE.length)return afterRound();
   revealed=false;
   // 上一張是滑掉的話，transform/opacity 還停在飛出去的狀態——不歸零新卡片會是隱形的。
@@ -1834,7 +1839,7 @@ function showCard(){
   else{front=`<span class="cefr">${lvBadge(card)}</span>${posL?`<span class="pos">${posL}</span>`:''}${card.img?`<img class="cardimg" src="images/img_${card.id}.webp" alt="">`:''}<div class="wordrow"><div class="word">${wordHtml(card.nl)}</div>${HAS_AUDIO&&!card.my?`<button class="wordaud" onclick="event.stopPropagation();play('w',${card.id})">${I_SPK}</button>`:''}</div>${hint}`;}
   $('#card').innerHTML=front;
   if(AUTOPLAY_T){clearTimeout(AUTOPLAY_T);AUTOPLAY_T=null;}
-  if(dir==='listen'){const _g=AUDIO_GEN;AUTOPLAY_T=setTimeout(()=>{AUTOPLAY_T=null;if(document.hidden||BLAST_ACTIVE||AUDIO_GEN!==_g||!QUEUE[qi]||QUEUE[qi].card.id!==card.id)return;play('w',card.id);},250);}
+  if(dir==='listen'){const _g=AUDIO_GEN;AUTOPLAY_T=setTimeout(()=>{AUTOPLAY_T=null;if(document.hidden||BLAST_ACTIVE||AUDIO_GEN!==_g||$('#study').classList.contains('hidden')||!QUEUE[qi]||QUEUE[qi].card.id!==card.id)return;play('w',card.id);},250);}
   if(dir==='type'||dir==='sentence'){
     $('#card').onclick=null;
     const inp=$('#typeIn');setTimeout(()=>inp.focus(),60);
@@ -1899,11 +1904,13 @@ function checkType(){
     const sib=findZhSibling(inp.value,card);
     if(sib){ok=true;note=`<div class="answernote">「${esc(sib.nl)}」也是「${esc(zhBase(card.zh))}」！這張考的是 <b>${esc(card.nl)}</b></div>`;}
   }
+  if(!RATE_META.firstT){ RATE_META.firstT=Date.now(); RATE_META.firstOk=!!ok; RATE_META.judge='typed'; }
+  if(!RATE_META.revealT){ RATE_META.revealT=Date.now(); }
   inp.classList.add(ok?'ok':'no');inp.disabled=true;
   const yours=(!ok&&norm(inp.value))?`<div class="answeryours">你的答案：${diffHtml(inp.value,isSent?(card.ex||''):card.nl)}</div>`:'';
   revealBack(ok?2:0, `<div class="answer">${ok?'<span class="good">✓ 正確</span>':'<span class="bad">✗ 正解：</span>'} ${ans}</div>${note}${yours}`);
 }
-function reveal(){ if(revealed)return; revealBack(null,''); }
+function reveal(){ if(revealed)return; CARD_REVEAL_T=Date.now(); if(!RATE_META.revealT){ RATE_META.revealT=CARD_REVEAL_T; RATE_META.judge=RATE_META.judge||'self'; } revealBack(null,''); }
 function revealBack(autoRate,extraTop){
   revealed=true;
   const {card}=QUEUE[qi];
@@ -1952,86 +1959,132 @@ function revealBack(autoRate,extraTop){
     <button class="r-easy" data-r="2">立刻想起<small>${ie}天</small></button></div>`;
   document.querySelectorAll('.rate button').forEach(b=>b.onclick=()=>rate(+b.dataset.r));
   if(AUTOPLAY_T){clearTimeout(AUTOPLAY_T);AUTOPLAY_T=null;}
-  if(showEx&&CFG.dir!=='listen'&&HAS_AUDIO&&!card.my){const _g=AUDIO_GEN;AUTOPLAY_T=setTimeout(()=>{AUTOPLAY_T=null;if(document.hidden||BLAST_ACTIVE||AUDIO_GEN!==_g||!QUEUE[qi]||QUEUE[qi].card.id!==card.id)return;play('e',card.id);},200);}
+  if(showEx&&CFG.dir!=='listen'&&HAS_AUDIO&&!card.my){const _g=AUDIO_GEN;AUTOPLAY_T=setTimeout(()=>{AUTOPLAY_T=null;if(document.hidden||BLAST_ACTIVE||AUDIO_GEN!==_g||$('#study').classList.contains('hidden')||!QUEUE[qi]||QUEUE[qi].card.id!==card.id)return;play('e',card.id);},200);}
 }
-/* ---------- 爆記（Codex 共同設計 2026-09-06；第三版）----------
-   不是「一直播到記住」。序列：認識（慢速單字）→ 開口 → 放進例句 → 撤掉提示 → 自己打出假名 → 回饋。
-   一輪就結束；爆記結果不呼叫 rate()、不改 SRS——它是卡住時的急救練習，長期記憶交給隔天的複習。
-   進入前先用原本的三鍵評分（防止練完覺得很熟就評成「立刻想起」），評分的推進延後到爆記結束。
-   生命週期：快捷鍵／undo／換頁／切模式／重建佇列都取消不推進；原卡的自動播放、連播、變速在爆記中無效。
-   音訊：每個播放任務有自己的 token 與看門狗；被擋就真的停、壞檔記降級、太長改文字版、載入卡住走降級分支。
-   學習秒數從第一個音真的開始播才計。 */
+/* ---------- 爆記（Codex 共同設計 2026-09-06；第六版）----------
+   序列：認識（慢速單字，至少 3 秒）→ 開口 3 秒 → 放進例句（實測時長合格的最短句，至少 7 秒）→ 撤掉提示 4 秒 → 自己打出假名 12 秒 → 回饋。
+   一輪就結束；不呼叫 rate()、不改 SRS。進入前先用三鍵評分，推進延後到爆記結束。
+   音訊任務：載入看門狗 4s（含重試）；播放預算＝上限＋300ms，只在真的播放時倒數（緩衝暫停）；metadata 超過 3／7 秒不播；
+   fail／slow／long → 音訊回呼永久失效、停音、文字停留（2／4 秒）再推進；自己主動停不算失敗。
+   學習秒數：播放中＋所有文字閱讀階段（含最低停留與回饋），載入／緩衝／被擋暫停。
+   事件：blast_open → blast_rated → blast_start → blast_audio* → blast_recall（提取結果）→ blast_end（所有退出路徑各一次，含總時間／階段／原因／降級）。 */
+let CARD_SHOWN_T=0, CARD_REVEAL_T=0;
+/* 本次作答的快照：showCard 建立、checkType 記首答、reveal 記揭曉；rate() 只讀不算 */
+let RATE_META={shownT:0,revealT:0,firstT:0,firstOk:null,judge:null,hint:false};
 let BLAST_ACTIVE=false, BLAST_RATING=false, BLAST_RATE_CALL=false, BLAST_NEXT=null, BLAST_T=[], BLAST_CARD=null,
     BLAST_OPEN_T0=0, BLAST_T0=0, BLAST_RESULT=null, BLAST_INPUT_LOCK=false, BLAST_SESSION=0, BLAST_ATTEMPT='',
     BLAST_AUDIO='ok', BLAST_COMP=false, BLAST_COMP_END=0, BLAST_GEN=0, BLAST_TASK=0, BLAST_KEY='', BLAST_CTX=null, BLAST_STARTED=false,
-    BLAST_ROUND=0, BLAST_LEARN=0, BLAST_SEG=0, BLAST_LEARN_LOGGED=false;
-const BLAST_DONE=new Set();   // 本次出現（會話:位置:卡）只能爆一次；瀏覽模式每次載入每張一次
+    BLAST_ROUND=0, BLAST_LEARN=0, BLAST_SEG=0, BLAST_LEARN_LOGGED=false, BLAST_EX=null, BLAST_ENDED=false, BLAST_PROBE=null, BLAST_STAGES={};
+const BLAST_DONE=new Set();      // 本次出現（會話:輪次:位置:卡）只能爆一次；瀏覽模式每次載入每張一次
+const BLAST_RESULTS={};          // attempt → {result, undone}：撤銷跨下一張也能回滾、且冪等
+const BLAST_EXI={};              // 每張卡輪替例句用的計數
 const BLAST_FAST=()=>window.__blastFast?0.1:1;   // 測試用：時間軸 ×0.1
-function blastLog(ev,extra){ try{ const a=LS.get('ja_events',[]); const c=BLAST_CTX||{}; a.push(Object.assign({ev,t:Date.now(),card:BLAST_CARD?BLAST_CARD.id:null,attempt:BLAST_ATTEMPT,fam:c.fam,mode:c.mode},extra||{})); if(a.length>300)a.splice(0,a.length-300); LS.set('ja_events',a); }catch(e){} }
-function blastStat(k){ const st=LS.get('ja_blast',{}); st[k]=(st[k]||0)+1; LS.set('ja_blast',st); }
+function evPush(o){ try{ const a=LS.get('ja_events',[]); a.push(o); if(a.length>600)a.splice(0,a.length-600); LS.set('ja_events',a); }catch(e){} }
+function blastLog(ev,extra){ const c=BLAST_CTX||{}; evPush(Object.assign({v:1,ev,t:Date.now(),card:BLAST_CARD?BLAST_CARD.id:null,attempt:BLAST_ATTEMPT,fam:c.fam,mode:c.mode},extra||{})); }
+function blastStat(k,d){ const st=LS.get('ja_blast',{}); st[k]=Math.max(0,(st[k]||0)+(d==null?1:d)); LS.set('ja_blast',st); }
 function toHira(x){ return (x||'').normalize('NFKC').replace(/[ァ-ヶ]/g,ch=>String.fromCharCode(ch.charCodeAt(0)-0x60)).replace(/[\s　]+/g,''); }
 function kanaOfCard(c){
-  const k=toHira(((c.extra||'').split(/[|｜]/)[0]||''));   // 先正規化再驗（全形／半形片假名、空白）
+  const k=toHira(((c.extra||'').split(/[|｜]/)[0]||''));
   if(/^[ぁ-ゖー]+$/.test(k)) return k;
-  const w=toHira(c.nl||''); return /^[ぁ-ゖー]+$/.test(w) ? w : '';   // 純假名詞的 extra 可能只有羅馬字：讀音就是它自己
+  const w=toHira(c.nl||''); return /^[ぁ-ゖー]+$/.test(w) ? w : '';
 }
-function blastCanRun(c){ return IS_NATIVE && !!c && !c.my && c.id<MYCARD_BASE && HAS_AUDIO && levelOf(c)!=='KANA' && !!kanaOfCard(c) && !!c.ex; }   // 先只在 App 內（TestFlight 試），網頁版等審查 SHIP 再開
-/* 學習秒數：只算「真的在學」的區段——第一個音開始播、或文字階段開始；載入等待／被擋的時間不算 */
-function learnStart(){ if(!BLAST_SEG) BLAST_SEG=Date.now(); if(!BLAST_LEARN_LOGGED){ BLAST_LEARN_LOGGED=true; if(!BLAST_T0) BLAST_T0=Date.now(); blastLog('blast_start',{ex:'ex',img:!!(BLAST_CARD&&BLAST_CARD.img)}); } }
+function blastCanRun(c){ return IS_NATIVE && !!c && !c.my && c.id<MYCARD_BASE && HAS_AUDIO && levelOf(c)!=='KANA' && !!kanaOfCard(c) && !!c.ex; }
+/* 例句候選：5 句依字數排序；在前兩個階段先用 preload=metadata 探實際時長，情境階段選「時長 ≤ 7 秒」的最短句輪替；
+   全部不合格（或探不到）→ 用最短句的文字版 */
+function blastCands(c){
+  const K=[['ex','e','exr','exzh'],['ex2','e2','exr2','exzh2'],['ex3','e3','exr3','exzh3'],['ex4','e4','exr4','exzh4'],['ex5','e5','exr5','exzh5']];
+  return K.filter(k=>c[k[0]]).map(k=>({txt:c[k[0]],aud:k[1],rb:c[k[2]]||'',zh:c[k[3]]||'',sec:null})).sort((x,y)=>x.txt.length-y.txt.length);
+}
+function blastProbe(c,cands){
+  if(!HAS_AUDIO) return;
+  BLAST_PROBE=[]; cands.forEach(cd=>{ try{ const a=new Audio(); a.preload='metadata'; a.onloadedmetadata=()=>{ cd.sec=a.duration||null; }; a.onerror=()=>{ cd.err=true; }; a.src=`${audioBase(c.id)}audio/${cd.aud}_${c.id}.mp3`; BLAST_PROBE.push(a); }catch(e){} });
+}
+function blastPickEx(c,cands){
+  // 合法集合＝實際時長 ≤ 7 秒（依時長排序、取最短兩句輪替）；探測逾時的當作不可用；集合空 → 最短句文字版
+  const ok=cands.filter(cd=>cd.sec!=null&&isFinite(cd.sec)&&cd.sec<=7).sort((x,y)=>x.sec-y.sec);
+  if(ok.length){ const n=(BLAST_EXI[c.id]=(BLAST_EXI[c.id]||0)+1); const o=Object.assign({},ok[(n-1)%Math.min(2,ok.length)]); o.mode='audio'; return o; }
+  const o=Object.assign({},cands[0]); o.mode='text'; o.reason=cands.some(cd=>cd.err)?'probe_error':(cands.some(cd=>cd.sec==null)?'probe_timeout':'all_too_long'); return o;
+}
+function learnStart(mode){ if(!BLAST_SEG) BLAST_SEG=Date.now(); if(!BLAST_LEARN_LOGGED){ BLAST_LEARN_LOGGED=true; if(!BLAST_T0) BLAST_T0=Date.now(); blastLog('blast_start',{img:!!(BLAST_CARD&&BLAST_CARD.img),audioMode:mode||'text'}); } }
 function learnPause(){ if(BLAST_SEG){ BLAST_LEARN+=Date.now()-BLAST_SEG; BLAST_SEG=0; } }
 function learnMs(){ return BLAST_LEARN+(BLAST_SEG?Date.now()-BLAST_SEG:0); }
 function blastKeyFor(card){ const isCur=!$('#study').classList.contains('hidden')&&qi<QUEUE.length&&QUEUE[qi].card.id===card.id; return isCur?`s:${BLAST_SESSION}:${BLAST_ROUND}:${qi}:${card.id}`:`b:${card.id}`; }
 function blastDone(card){ return BLAST_DONE.has(blastKeyFor(card)); }
-function bAfter(ms,fn){ const g=BLAST_GEN; BLAST_T.push(setTimeout(()=>{ if(BLAST_ACTIVE&&BLAST_GEN===g) fn(); },ms*BLAST_FAST())); }
+function bAfter(ms,fn){ const g=BLAST_GEN; const h=setTimeout(()=>{ if(BLAST_ACTIVE&&BLAST_GEN===g) fn(); },ms*BLAST_FAST()); BLAST_T.push(h); return h; }
 function bClear(){ BLAST_T.forEach(clearTimeout); BLAST_T=[]; }
-function bStop(){ try{ if(AUD){ AUD.pause(); AUD.onended=null; AUD.onerror=null; AUD.onplaying=null; AUD.onloadedmetadata=null; } }catch(e){} BLAST_TASK++; }
-function bAudioWorse(state){ const rank={ok:0,slow:1,long:1,blocked:2,fail:3}; if((rank[state]||0)>(rank[BLAST_AUDIO]||0)) BLAST_AUDIO=state; }
-/* 一個播放任務：播完（onended）→ cb；被擋 → 真的停下等點一下；壞檔 → 降級文字版；太長 → 不播、文字停留；載入卡住 → 看門狗停音走降級。
-   規則：settle 一次就永久失效（done），之後任何回呼都不動狀態；自己主動 pause 造成的 AbortError 不算檔案失敗；
-   允許時長＝maxMs＋300，看門狗＝maxMs＋800（看門狗一定晚於允許時長）。 */
-function bPlayThen(kind,id,rate,maxMs,cb){
-  const g=BLAST_GEN, task=++BLAST_TASK; let done=false, wd=null, stopping=false, played=false;
+function bStop(){ try{ if(AUD){ AUD.pause(); AUD.onended=null; AUD.onerror=null; AUD.onplaying=null; AUD.onloadedmetadata=null; AUD.onwaiting=null; AUD.onstalled=null; } }catch(e){} BLAST_TASK++; const r=document.querySelector('#bbody .bresume'); if(r) r.remove(); }
+/* 回饋用：背景播一次，成功失敗都不影響閱讀計時；被擋就算了（回饋不是必要素材） */
+function bPlayOnce(kind,id,rate,maxMs){
+  maxMs=maxMs||3000; BLAST_TASK++; const task=BLAST_TASK, g=BLAST_GEN; let started=false, done=false;
   const live=()=>!done&&BLAST_ACTIVE&&BLAST_GEN===g&&BLAST_TASK===task;
-  const detach=()=>{ try{ if(AUD){ AUD.onended=null; AUD.onerror=null; AUD.onplaying=null; AUD.onloadedmetadata=null; } }catch(e){} };
-  const settle=(state,stopAudio)=>{ if(done) return; done=true; if(wd){clearTimeout(wd);wd=null;} detach(); if(stopAudio){ stopping=true; try{AUD.pause();}catch(e){} } if(state) bAudioWorse(state); learnPause(); cb(); };
-  const arm=(ms,state)=>{ if(wd) clearTimeout(wd); wd=setTimeout(()=>{ if(!live()) return; if(state) blastLog('blast_audio',{state,kind}); settle(state,true); },ms*BLAST_FAST()); };
-  if(!HAS_AUDIO||BLAST_AUDIO==='fail'){ learnStart(); arm(Math.min(maxMs,2000)); return; }
+  const end=(state)=>{ if(done) return; done=true; try{ if(AUD){ AUD.onended=null;AUD.onerror=null;AUD.onplaying=null;AUD.onloadedmetadata=null; if(state!=='ok') AUD.pause(); } }catch(e){} BLAST_STAGES.feedback=state; blastLog('blast_audio',{stage:'feedback',state,kind}); };
+  try{
+    if(!AUD)AUD=new Audio();
+    AUD.onended=null;AUD.onerror=null;AUD.onplaying=null;AUD.onloadedmetadata=null;AUD.onwaiting=null;AUD.onstalled=null;
+    AUD.src=`${audioBase(id)}audio/${kind}_${id}.mp3`; AUD.playbackRate=rate;
+    AUD.onloadedmetadata=()=>{ if(!live()) return; if((AUD.duration||0)*1000/rate>maxMs) end('long'); };
+    AUD.onplaying=()=>{ if(!live()) return; started=true; BLAST_T.push(setTimeout(()=>{ if(live()) end('slow'); },(maxMs+300)*BLAST_FAST())); };
+    AUD.onended=()=>{ if(!live()) return; end('ok'); };
+    AUD.onerror=()=>{ if(!live()) return; end('fail'); };
+    const p=AUD.play(); if(p&&p.catch) p.catch(e=>{ if(!live()) return; end(e&&e.name==='NotAllowedError'?'blocked':'fail'); });
+    BLAST_T.push(setTimeout(()=>{ if(live()&&!started) end('slow'); },4000*BLAST_FAST()));   // 回饋到期還沒開始播就收掉
+  }catch(e){ end('fail'); }
+}
+function bAudioWorse(state){ const rank={ok:0,slow:1,long:1,blocked:2,fail:3}; if((rank[state]||0)>(rank[BLAST_AUDIO]||0)) BLAST_AUDIO=state; }
+/* 一個播放任務。cb 在「播完」或「文字停留結束」時呼叫一次。
+   audioLive：音訊回呼是否還算數（降級後立刻 false）；taskLive：這個任務的文字 timer 是否還算數。 */
+function bPlayThen(kind,id,rate,maxMs,textMs,cb,forceText){
+  const g=BLAST_GEN, task=++BLAST_TASK; let done=false, audioDead=false, ldwd=null, plwd=null, wwd=null, budget=maxMs+300, playStart=0, playing=false;
+  const taskLive=()=>!done&&BLAST_ACTIVE&&BLAST_GEN===g&&BLAST_TASK===task;
+  const audioLive=()=>taskLive()&&!audioDead;
+  const detach=()=>{ try{ if(AUD){ AUD.onended=null; AUD.onerror=null; AUD.onplaying=null; AUD.onloadedmetadata=null; AUD.onwaiting=null; AUD.onstalled=null; } }catch(e){} };
+  const clearWd=()=>{ if(ldwd){clearTimeout(ldwd);ldwd=null;} if(plwd){clearTimeout(plwd);plwd=null;} if(wwd){clearTimeout(wwd);wwd=null;} };
+  const finish=()=>{ if(done) return; done=true; audioDead=true; clearWd(); detach(); cb(); };
+  const textStay=(ms)=>{ learnStart('text'); const h=setTimeout(()=>{ if(taskLive()) finish(); },ms*BLAST_FAST()); BLAST_T.push(h); };
+  const degrade=(state)=>{ if(!audioLive()) return; audioDead=true; BLAST_STAGES[kind]=(playing||playStart)?'partial:'+state:state; bAudioWorse(state); blastLog('blast_audio',{state,kind}); clearWd(); detach(); try{AUD.pause();}catch(e){} learnPause(); textStay(textMs); };
+  const armLoad=()=>{ if(ldwd) clearTimeout(ldwd); ldwd=setTimeout(()=>{ if(!audioLive()||playing) return; degrade('slow'); },4000*BLAST_FAST()); };
+  const armPlay=()=>{ if(plwd) clearTimeout(plwd); playStart=Date.now(); plwd=setTimeout(()=>{ if(!audioLive()) return; degrade('slow'); },budget*BLAST_FAST()); };
+  // 緩衝：扣掉已播預算、暫停學習，並上 4 秒等待看門狗（重複 waiting 不延長）
+  const pausePlay=()=>{ if(!playing) return; playing=false; if(plwd){ clearTimeout(plwd); plwd=null; } if(playStart){ budget=Math.max(0,budget-(Date.now()-playStart)/BLAST_FAST()); playStart=0; } learnPause(); if(!wwd) wwd=setTimeout(()=>{ wwd=null; if(!audioLive()||playing) return; degrade('slow'); },4000*BLAST_FAST()); };
+  const onReject=(err)=>{ if(!audioLive()) return; if(err&&err.name==='NotAllowedError') blocked(); else if(err&&err.name==='AbortError'){ } else degrade('fail'); };
   const blocked=()=>{
-    if(!live()) return;
-    bAudioWorse('blocked'); blastLog('blast_audio',{state:'blocked',kind}); if(wd){clearTimeout(wd);wd=null;} learnPause();
+    if(!audioLive()) return;
+    bAudioWorse('blocked'); blastLog('blast_audio',{state:'blocked',kind}); clearWd(); learnPause();
     const box=$('#bbody'); if(!box||box.querySelector('.bresume')) return;
     const btn=document.createElement('button'); btn.className='blastbtn bresume'; btn.textContent='點一下繼續播放';
-    btn.onclick=()=>{ if(!live()) return; btn.remove(); const p2=AUD.play();
-      if(p2&&p2.then) p2.then(()=>{ if(!live()) return; arm(maxMs+800,'slow'); }).catch(e=>{ if(!live()) return; if(e&&e.name==='NotAllowedError') blocked(); else { blastLog('blast_audio',{state:'fail',kind}); settle('fail'); } }); };
+    btn.onclick=()=>{ if(!audioLive()) return; btn.remove(); armLoad(); try{ const p2=AUD.play(); if(p2&&p2.catch) p2.catch(onReject); }catch(e){ onReject(e); } };   // 重試前就上載入看門狗
     box.appendChild(btn);
   };
+  if(forceText||!HAS_AUDIO||BLAST_AUDIO==='fail'){ audioDead=true; BLAST_STAGES[kind]='text'; blastLog('blast_audio',{state:'text',kind,why:forceText?'no_fit':(!HAS_AUDIO?'no_audio':'prev_fail')}); textStay(textMs); return; }
+  learnPause();   // 載入中不算學習
   try{
     if(!AUD)AUD=new Audio();
     detach();
     AUD.src=`${audioBase(id)}audio/${kind}_${id}.mp3`; AUD.playbackRate=rate;
-    AUD.onloadedmetadata=()=>{ if(!live()) return; const need=(AUD.duration||0)*1000/rate; if(need>maxMs+300){ blastLog('blast_audio',{state:'long',kind,sec:Math.round(AUD.duration||0)}); stopping=true; try{AUD.pause();}catch(e){} learnStart(); arm(Math.min(maxMs,3000),'long'); } };
-    AUD.onplaying=()=>{ if(!live()) return; played=true; learnStart(); };
-    AUD.onended=()=>{ if(!live()) return; settle(); };
-    AUD.onerror=()=>{ if(!live()||stopping) return; blastLog('blast_audio',{state:'fail',kind}); settle('fail'); };
-    const p=AUD.play();
-    if(p&&p.catch) p.catch(err=>{ if(!live()||stopping) return; if(err&&err.name==='NotAllowedError') blocked(); else if(err&&err.name==='AbortError'){ /* 被自己或換源中止：不算檔案失敗 */ } else { blastLog('blast_audio',{state:'fail',kind}); settle('fail'); } });
-    arm(maxMs+800,'slow');   // 載入卡住／沒有 onended 的看門狗：停音、記 slow、走降級
-  }catch(e){ settle('fail'); }
+    AUD.onloadedmetadata=()=>{ if(!audioLive()) return; const need=(AUD.duration||0)*1000/rate; if(need>maxMs) degrade('long'); };
+    AUD.onplaying=()=>{ if(!audioLive()) return; playing=true; BLAST_STAGES[kind]='playing'; if(ldwd){clearTimeout(ldwd);ldwd=null;} if(wwd){clearTimeout(wwd);wwd=null;} learnStart('audio'); armPlay(); };
+    AUD.onwaiting=()=>{ if(audioLive()) pausePlay(); };
+    AUD.onstalled=()=>{ if(audioLive()&&(AUD.readyState|0)<3) pausePlay(); };   // 下載停滯但還有緩衝可播 → 不算停
+    AUD.onended=()=>{ if(!audioLive()) return; BLAST_STAGES[kind]='played'; learnPause(); finish(); };
+    AUD.onerror=()=>{ if(!audioLive()) return; degrade('fail'); };
+    const p=AUD.play(); if(p&&p.catch) p.catch(onReject);
+    armLoad();
+  }catch(e){ onReject(e); }
 }
 function bStage(label,pct){ $('#bstage').textContent=label; $('#bfill').style.width=pct+'%'; }
 function startBlast(cardId){
   const card=cardById(cardId); if(!blastCanRun(card)||BLAST_ACTIVE) return;
   const studyOpen=!$('#study').classList.contains('hidden');
   const isCur=studyOpen&&qi<QUEUE.length&&QUEUE[qi].card.id===card.id;
-  if(studyOpen&&!isCur) return;      // 學習頁只能爆目前這張，不能拿別張冒充瀏覽入口
-  if(isCur&&!revealed) return;        // 而且必須已翻面
+  if(studyOpen&&!isCur) return;
+  if(isCur&&!revealed) return;
   const key=isCur?`s:${BLAST_SESSION}:${BLAST_ROUND}:${qi}:${card.id}`:`b:${card.id}`;
-  if(BLAST_DONE.has(key)) return;     // 本次出現只能爆一次
-  if(AUTOPLAY_T){ clearTimeout(AUTOPLAY_T); AUTOPLAY_T=null; }
-  AUDIO_GEN++; bStop();
+  if(BLAST_DONE.has(key)) return;
+  stopAllAudio(); bStop();
   BLAST_GEN++; BLAST_CARD=card; BLAST_KEY=key; BLAST_CTX={fam:curFam(),mode:CFG.dir,inStudy:isCur};
-  BLAST_ACTIVE=true; BLAST_NEXT=null; BLAST_RESULT=null; BLAST_INPUT_LOCK=false; BLAST_AUDIO='ok'; BLAST_COMP=false; BLAST_STARTED=false;
-  BLAST_OPEN_T0=Date.now(); BLAST_T0=0; BLAST_ATTEMPT=BLAST_OPEN_T0.toString(36)+':'+card.id; bClear();
+  BLAST_ACTIVE=true; BLAST_NEXT=null; BLAST_RESULT=null; BLAST_INPUT_LOCK=false; BLAST_AUDIO='ok'; BLAST_COMP=false; BLAST_STARTED=false; BLAST_EX=null; BLAST_ENDED=false; BLAST_PROBE=null;
+  BLAST_OPEN_T0=Date.now(); BLAST_T0=0; BLAST_LEARN=0; BLAST_SEG=0; BLAST_LEARN_LOGGED=false; BLAST_STAGES={};
+  BLAST_ATTEMPT=BLAST_OPEN_T0.toString(36)+':'+card.id; BLAST_RESULTS[BLAST_ATTEMPT]={result:null,started:false,undone:false}; bClear();
   $('#blast').classList.remove('hidden');
   blastLog('blast_open',{inStudy:isCur});
   if(isCur){
@@ -2047,27 +2100,36 @@ function blastRate(r){
   blastLog('blast_rated',{r});
   blastSeq();
 }
+/* 階段最低停留：播完（或文字停留完）後若還不到 minMs，靜音看字到 minMs——這段算學習 */
+function bStageMin(t0,minMs,fn){ const left=Math.max(0,minMs-(Date.now()-t0)/BLAST_FAST()); if(left>0){ learnStart('text'); } bAfter(left,fn); }
 function blastSeq(){
-  const c=BLAST_CARD, kana=kanaOfCard(c); BLAST_STARTED=true; BLAST_DONE.add(BLAST_KEY);
-  blastStat('starts'); BLAST_LEARN=0; BLAST_SEG=0; BLAST_LEARN_LOGGED=false;
-  bStage('先混個耳熟',8);
+  const c=BLAST_CARD, kana=kanaOfCard(c); BLAST_STARTED=true; BLAST_DONE.add(BLAST_KEY); BLAST_RESULTS[BLAST_ATTEMPT].started=true;
+  const cands=blastCands(c); blastProbe(c,cands);
+  blastStat('starts');
+  // ① 認識：慢速單字（至少 3 秒）
+  bStage('先混個耳熟',8); const t1=Date.now();
   $('#bbody').innerHTML=`<div class="bgroup">${c.img?`<img class="cardimg" src="images/img_${c.id}.webp" alt="" onerror="this.remove()">`:''}<div class="bword">${esc(c.nl)}</div><div class="bkana">${esc(kana)}</div><div class="bzh">${esc(c.zh)}</div></div>`;
-  bPlayThen('w',c.id,0.85,3000,()=>bAfter(500,()=>{
-    bStage('換你出聲',20); learnStart();
+  bPlayThen('w',c.id,0.85,3000,2000,()=>bStageMin(t1,3000,()=>{
+    // ② 開口（3 秒）
+    bStage('換你出聲',20); learnStart('text');
     $('#bbody').innerHTML=`<div class="bgroup"><div class="bword">${esc(c.nl)}</div><div class="bkana">${esc(kana)}</div><div class="bhint">換你念一次<br><small>不用開麥克風，念給自己聽</small></div></div>`;
     bAfter(3000,()=>{
-      bStage('放進情境',40);
-      $('#bbody').innerHTML=`<div class="bgroup"><div class="bex">${c.exr?rubyHtml(c.exr):esc(c.ex)}</div><div class="bexzh">${esc(c.exzh||'')}</div></div>`;
-      bPlayThen('e',c.id,1.0,7000,()=>bAfter(600,()=>{
-        bStage('答案先下班',55); bStop(); learnStart();
+      // ③ 放進情境（至少 7 秒）：用探到的時長選句
+      const ex=BLAST_EX=blastPickEx(c,cands);
+      blastLog('blast_ex',{ex:ex.aud,selectedMode:ex.mode,sec:ex.sec==null?null:Math.round(ex.sec*10)/10,reason:ex.reason||null});
+      bStage('放進情境',40); const t3=Date.now();
+      $('#bbody').innerHTML=`<div class="bgroup"><div class="bex">${ex.rb?rubyHtml(ex.rb):esc(ex.txt)}</div><div class="bexzh">${esc(ex.zh)}</div></div>`;
+      bPlayThen(ex.aud,c.id,1.0,7000,4000,()=>bStageMin(t3,7000,()=>{
+        // ④ 撤掉提示（4 秒）
+        bStage('答案先下班',55); bStop(); learnStart('text');
         $('#bbody').innerHTML=`<div class="bhint">收起來，等等換你</div>`;
-        bAfter(3000,blastRecall);
-      }));
+        bAfter(4000,blastRecall);
+      }),ex.mode==='text');
     });
   }));
 }
 function blastRecall(){
-  const c=BLAST_CARD; learnStart();
+  const c=BLAST_CARD; learnStart('text');
   bStage('換你想',65);
   $('#bbody').innerHTML=`<div class="bgroup"><div class="bzh">${esc(c.zh)}</div><div class="bhint">打出剛才那個字的假名</div>
     <input class="bin" id="bin" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" inputmode="text" lang="ja">
@@ -2078,7 +2140,7 @@ function blastRecall(){
   inp.addEventListener('compositionend',()=>{ BLAST_COMP=false; BLAST_COMP_END=Date.now(); });
   inp.addEventListener('keydown',e=>{
     if(e.key!=='Enter') return;
-    if(e.isComposing||e.keyCode===229||BLAST_COMP||Date.now()-BLAST_COMP_END<150){ return; }   // IME 選字確認不是送出
+    if(e.isComposing||e.keyCode===229||BLAST_COMP||Date.now()-BLAST_COMP_END<150){ return; }
     e.preventDefault(); blastSubmit();
   });
   bAfter(12000,()=>blastFinish('timeout'));
@@ -2087,9 +2149,10 @@ function blastSubmit(){ if(!BLAST_ACTIVE||BLAST_INPUT_LOCK||BLAST_COMP) return; 
 function blastGiveUp(){ if(!BLAST_ACTIVE||BLAST_INPUT_LOCK) return; BLAST_INPUT_LOCK=true; blastFinish('giveup'); }
 function blastFinish(result,answer){
   if(!BLAST_ACTIVE||BLAST_RESULT) return;
-  BLAST_RESULT=result; bClear(); learnPause(); const c=BLAST_CARD, kana=kanaOfCard(c);
-  blastStat(result); blastLog('blast_end',{result,ms:learnMs(),wallMs:Date.now()-BLAST_OPEN_T0,audio:BLAST_AUDIO});
-  bStage(result==='ok'?'抓到了':'先到這裡',100);
+  BLAST_RESULT=result; bClear(); const c=BLAST_CARD, kana=kanaOfCard(c);
+  blastStat(result); BLAST_RESULTS[BLAST_ATTEMPT].result=result;
+  blastLog('blast_recall',{result,ms:learnMs(),judge:'auto',ex:BLAST_EX?BLAST_EX.aud:'e'});   // 提取結果；整輪終止另記 blast_end
+  bStage(result==='ok'?'抓到了':'先到這裡',100); learnStart('text');   // 回饋與再教也是學習
   const why = result==='timeout' ? '時間到了，先看答案' : result==='giveup' ? '沒關係，先看答案' : result==='wrong' ? `你打的是 <span class="bwrong">${esc(answer)}</span>` : '';
   if(result==='ok'){
     $('#bbody').innerHTML=`<div class="bcatch"><div class="bc1">本日捕獲</div><div class="bcw">${esc(c.nl)}</div><div class="bck">${esc(kana)}　${esc(c.zh)}</div><div class="bcq">「你已經被我想起來了。」</div><div class="bcf">本輪無提示答對 · 単語ノート</div></div>
@@ -2097,34 +2160,40 @@ function blastFinish(result,answer){
   } else {
     $('#bbody').innerHTML=`<div class="bgroup"><div class="bword">${esc(c.nl)}</div><div class="bkana">${esc(kana)}</div><div class="bzh">${esc(c.zh)}</div>
       <div class="bhint">${why}</div>
-      <div class="bhint">今天先認識到這裡。<b>下次再碰面。</b><br><small>看著正解再念一次，再聽一次</small></div><div class="bbtns"><button class="go" id="bnext" disabled>繼續</button></div></div>`;
+      <div class="bhint" id="bteach">今天先認識到這裡。<b>下次再碰面。</b></div><div class="bbtns"><button class="go" id="bnext" disabled>繼續</button></div></div>`;
   }
-  // 回饋：答對 4 秒、答錯 4＋4 秒才能「繼續」（✕ 隨時可走）；解鎖計時器獨立於播放任務
-  bPlayThen('w',c.id,1.0,3000,()=>{ if(result!=='ok') bAfter(2500,()=>bPlayThen('w',c.id,0.85,3000,()=>{})); });
-  const bn=$('#bnext'); bn.onclick=blastClose;
+  bPlayOnce('w',c.id,1.0);   // 回饋音只播一次；閱讀計時獨立於它成不成功
+  $('#bnext').onclick=()=>blastClose('continue');
+  if(result!=='ok'){ bAfter(4000,()=>{ bStop(); learnStart('text'); const t=$('#bteach'); if(t) t.innerHTML='看著正解<b>再念一次</b>，這輪先到這裡'; }); }
   bAfter(result==='ok'?4000:8000,()=>{ const b=$('#bnext'); if(b){ b.disabled=false; } });
 }
-function blastTeardown(){ AUDIO_GEN++; BLAST_GEN++; bClear(); bStop(); learnPause(); BLAST_ACTIVE=false; BLAST_RATING=false; BLAST_RATE_CALL=false; BLAST_RESULT=null; $('#blast').classList.add('hidden'); }
-/* 取消：不推進、不新增評分（undo／換頁／切模式／重建佇列用）。會記一筆退出事件。 */
-function blastAbort(why){
-  if(!BLAST_ACTIVE) return;
-  if(!BLAST_RESULT&&BLAST_STARTED){ blastStat('quit'); }
-  blastLog('blast_done',{result:BLAST_RESULT||'quit',why:why||'abort',stage:$('#bstage').textContent,audio:BLAST_AUDIO,ms:learnMs(),wallMs:Date.now()-BLAST_OPEN_T0});
-  BLAST_NEXT=null; blastTeardown();
+/* undo：依 attempt 回滾這次的統計（冪等，跨下一張也行）、記撤銷事件 */
+function blastUndo(attempt){
+  const r=BLAST_RESULTS[attempt]; if(!r||r.undone) return; r.undone=true;
+  if(r.started){ blastStat(r.result||'quit',-1); blastStat('undone'); }
+  const a=LS.get('ja_events',[]); const src=a.slice().reverse().find(e=>e.attempt===attempt)||{};
+  evPush({v:1,ev:'blast_undo',t:Date.now(),attempt,card:src.card,fam:src.fam,mode:src.mode,result:r.result||(r.started?'quit':'cancel')});
 }
-/* 關閉：使用者按 ✕／繼續／Escape／切背景——有評分過就推進到下一張 */
-function blastClose(){
+/* 終止：所有退出路徑共用，一次性 */
+function blastEnd(why){
+  if(BLAST_ENDED) return; BLAST_ENDED=true; learnPause();
+  const r=BLAST_RESULTS[BLAST_ATTEMPT]; const result=BLAST_RESULT||(BLAST_STARTED?'quit':'cancel');
+  if(!BLAST_RESULT&&BLAST_STARTED){ blastStat('quit'); if(r) r.result='quit'; }
+  blastLog('blast_end',{result,why,stage:$('#bstage').textContent,audio:BLAST_AUDIO,ex:BLAST_EX?BLAST_EX.aud:null,selectedMode:BLAST_EX?BLAST_EX.mode:null,stages:BLAST_STAGES,ms:learnMs(),wallMs:Date.now()-BLAST_OPEN_T0});
+}
+function blastTeardown(){ if(BLAST_PROBE){ BLAST_PROBE.forEach(a=>{ try{a.src='';}catch(e){} }); BLAST_PROBE=null; } stopAllAudio(); BLAST_GEN++; bClear(); bStop(); learnPause(); BLAST_ACTIVE=false; BLAST_RATING=false; BLAST_RATE_CALL=false; BLAST_RESULT=null; $('#blast').classList.add('hidden'); }
+function blastAbort(why){ if(!BLAST_ACTIVE) return; blastEnd(why||'abort'); BLAST_NEXT=null; blastTeardown(); }
+function blastClose(why){
   if(!BLAST_ACTIVE) return;
-  if(!BLAST_RESULT&&BLAST_STARTED){ blastStat('quit'); }
-  blastLog('blast_done',{result:BLAST_RESULT||'quit',why:'close',stage:$('#bstage').textContent,audio:BLAST_AUDIO,ms:learnMs(),wallMs:Date.now()-BLAST_OPEN_T0});
-  const next=BLAST_NEXT; BLAST_NEXT=null; blastTeardown();
-  const btn=document.querySelector('#study .blastbtn'); if(btn&&BLAST_STARTED) btn.remove();
+  blastEnd((typeof why==='string')?why:'x');
+  const next=BLAST_NEXT; BLAST_NEXT=null; const started=BLAST_STARTED; blastTeardown();
+  const btn=document.querySelector('#study .blastbtn'); if(btn&&started) btn.remove();
   if(next) next();
 }
-$('#bquit').onclick=blastClose;
-document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&BLAST_ACTIVE){ e.stopImmediatePropagation(); blastClose(); } },true);
-document.addEventListener('visibilitychange',()=>{ if(document.hidden&&BLAST_ACTIVE) blastClose(); });
-window.addEventListener('pagehide',()=>{ if(BLAST_ACTIVE) blastAbort('pagehide'); });
+$('#bquit').onclick=()=>blastClose('x');
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&BLAST_ACTIVE){ e.stopImmediatePropagation(); blastClose('escape'); } },true);
+document.addEventListener('visibilitychange',()=>{ if(document.hidden&&BLAST_ACTIVE) blastClose('background'); });
+window.addEventListener('pagehide',()=>{ if(BLAST_ACTIVE) blastAbort('pagehide'); stopAllAudio(); });
 
 function rate(r){
   if(BLAST_ACTIVE && !BLAST_RATE_CALL) return;   // 爆記中只有 blastRate() 這一條路能評分
@@ -2148,6 +2217,11 @@ function rate(r){
     queue:QUEUE.slice(), sessionTotal,
     retry:RETRY.slice(), answers:sessionAnswers};
   if(BLAST_ACTIVE) lastSnap.blastAttempt=BLAST_ATTEMPT;
+  lastSnap.rid=Date.now().toString(36)+':'+card.id;
+  { const m=RATE_META; const now=Date.now();
+    evPush({v:1,ev:'review_attempt',rid:lastSnap.rid,t:now,card:card.id,r,fam:_fam,mode:CFG.dir,isNew:isNewCard,blast:BLAST_ACTIVE?BLAST_ATTEMPT:null,
+      firstAnswerCorrect:m.firstOk, firstAnswerMs:(m.shownT&&m.firstT)?m.firstT-m.shownT:null, revealMs:(m.shownT&&m.revealT)?m.revealT-m.shownT:null,
+      ratingLatencyMs:m.shownT?now-m.shownT:null, judge:m.judge||'self', hintShown:!!m.hint, revealedBeforeAnswer:(m.firstT&&m.revealT)?m.revealT<m.firstT:null}); }
   schedule(card.id,r);
   if(isNewCard) bumpNewToday(1);
   STAT.today=(STAT.today||0)+1;
@@ -2164,7 +2238,8 @@ function rate(r){
 function undo(){
   if(BLAST_ACTIVE) blastAbort('undo');
   if(!lastSnap)return;
-  if(lastSnap.blastAttempt){ try{ const a=LS.get('ja_events',[]); a.push({ev:'blast_undo',t:Date.now(),attempt:lastSnap.blastAttempt}); LS.set('ja_events',a); }catch(e){} }
+  if(lastSnap.rid){ evPush({v:1,ev:'review_undo',rid:lastSnap.rid,t:Date.now(),card:lastSnap.id,fam:lastSnap.fam}); }
+  if(lastSnap.blastAttempt){ blastUndo(lastSnap.blastAttempt); }
   const s=lastSnap;
   if(s.prev) srsSet(s.id, s.prev, s.fam); else srsDrop(s.id, s.fam);
   STAT.today=s.today; STAT.streak=s.streak; STAT.lastDay=s.lastDay; LS.set('ja_stat',STAT);
@@ -2376,6 +2451,7 @@ function savedSentences(){
 }
 function showSentences(){
   if(BLAST_ACTIVE) blastAbort('leave');
+  stopAllAudio();
   $('#home').classList.add('hidden');$('#study').classList.add('hidden');$('#done').classList.add('hidden');
   $('#sentences').classList.remove('hidden');
   curSent=savedSentences();
@@ -2391,8 +2467,8 @@ function playSentList(){
   if(!HAS_AUDIO||!curSent.length)return;
   if(BLAST_ACTIVE)return;
   if(!AUD)AUD=new Audio();let i=0;
-  let fails=0;const _g=AUDIO_GEN;
-  const next=()=>{if(BLAST_ACTIVE||AUDIO_GEN!==_g)return;if(i>=curSent.length){AUD.onended=null;if(fails)audioToast(AUDFAILMSG);return;}AUD.src=`${audioBase(curSent[i].cid)}audio/${curSent[i].k}_${curSent[i].cid}.mp3`;AUD.playbackRate=0.92*exSpeed();i++;AUD.onended=next;AUD.play().catch(e=>{if(realAudioFail(e))fails++;next();});};
+  let fails=0;const _g=++AUDIO_GEN,_list=curSent.slice();
+  const next=()=>{if(BLAST_ACTIVE||AUDIO_GEN!==_g)return;if(i>=_list.length){AUD.onended=null;if(fails)audioToast(AUDFAILMSG);return;}AUD.src=`${audioBase(_list[i].cid)}audio/${_list[i].k}_${_list[i].cid}.mp3`;AUD.playbackRate=0.92*exSpeed();i++;AUD.onended=next;AUD.play().catch(e=>{if(realAudioFail(e))fails++;next();});};
   next();
 }
 
@@ -2524,6 +2600,7 @@ function renderBrowse(){
 }
 function openBrowse(){
   if(BLAST_ACTIVE) blastAbort('leave');
+  stopAllAudio();
   $('#home').classList.add('hidden');$('#study').classList.add('hidden');$('#done').classList.add('hidden');$('#sentences').classList.add('hidden');
   $('#browse').classList.remove('hidden');
   BROWSE_SCOPED = false;   // default: search the whole vocabulary (tap the chip to scope to your deck)
