@@ -2003,7 +2003,8 @@ function kanaOfCard(c){
   if(/^[ぁ-ゖー]+$/.test(k)) return k;
   const w=toHira(c.nl||''); return /^[ぁ-ゖー]+$/.test(w) ? w : '';
 }
-function blastCanRun(c){ return IS_NATIVE && !!c && !c.my && c.id<MYCARD_BASE && HAS_AUDIO && levelOf(c)!=='KANA' && !!kanaOfCard(c) && !!c.ex; }
+/* 2026-09-07 真機驗過（音檔被擋重試／IME／背景／慢網）後開給網頁版；原本 IS_NATIVE 閘只是等驗收 */
+function blastCanRun(c){ return !!c && !c.my && c.id<MYCARD_BASE && HAS_AUDIO && levelOf(c)!=='KANA' && !!kanaOfCard(c) && !!c.ex; }
 /* 例句候選：5 句依字數排序；在前兩個階段先用 preload=metadata 探實際時長，情境階段選「時長 ≤ 7 秒」的最短句輪替；
    全部不合格（或探不到）→ 用最短句的文字版 */
 function blastCands(c){
