@@ -1843,7 +1843,8 @@ function showCard(){
   if(dir==='type'||dir==='sentence'){
     $('#card').onclick=null;
     const inp=$('#typeIn');setTimeout(()=>inp.focus(),60);
-    inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();checkType();}});
+    let _compEnd=0; inp.addEventListener('compositionend',()=>{ _compEnd=Date.now(); });
+    inp.addEventListener('keydown',e=>{ if(e.key!=='Enter') return; if(e.isComposing||e.keyCode===229||Date.now()-_compEnd<150) return; e.preventDefault(); checkType(); });   // 日文輸入法選字的 Enter 不是送出
     // 提示說「先看答案認識它」，就得真的有看答案的入口——不能逼人空白按確認吃一個 ✗
     $('#controls').innerHTML=`<button class="actbtn navy" id="checkBtn">確認</button><button class="actbtn" id="peekBtn" style="margin-top:8px;background:transparent;border:1.5px solid #dfd6c8;color:var(--navy)">看答案</button>`;
     $('#checkBtn').onclick=checkType;
@@ -2017,18 +2018,18 @@ function bStop(){ try{ if(AUD){ AUD.pause(); AUD.onended=null; AUD.onerror=null;
 function bPlayOnce(kind,id,rate,maxMs){
   maxMs=maxMs||3000; BLAST_TASK++; const task=BLAST_TASK, g=BLAST_GEN; let started=false, done=false;
   const live=()=>!done&&BLAST_ACTIVE&&BLAST_GEN===g&&BLAST_TASK===task;
-  const end=(state)=>{ if(done) return; done=true; try{ if(AUD){ AUD.onended=null;AUD.onerror=null;AUD.onplaying=null;AUD.onloadedmetadata=null; if(state!=='ok') AUD.pause(); } }catch(e){} BLAST_STAGES.feedback=state; blastLog('blast_audio',{stage:'feedback',state,kind}); };
+  const end=(state)=>{ if(done) return; done=true; try{ if(AUD){ AUD.onended=null;AUD.onerror=null;AUD.onplaying=null;AUD.onloadedmetadata=null; if(state!=='ok') AUD.pause(); } }catch(e){} BLAST_STAGES.feedback=state; blastLog('blast_audio',{stage:'feedback',state,kind}); if(BLAST_FB_TEACH_WAIT){ BLAST_FB_TEACH_WAIT=false; feedbackTeach(); } };
   try{
     if(!AUD)AUD=new Audio();
     AUD.onended=null;AUD.onerror=null;AUD.onplaying=null;AUD.onloadedmetadata=null;AUD.onwaiting=null;AUD.onstalled=null;
     AUD.src=`${audioBase(id)}audio/${kind}_${id}.mp3`; AUD.playbackRate=rate;
     AUD.onloadedmetadata=()=>{ if(!live()) return; if((AUD.duration||0)*1000/rate>maxMs) end('long'); };
-    AUD.onplaying=()=>{ if(!live()) return; started=true; BLAST_T.push(setTimeout(()=>{ if(live()) end('slow'); },(maxMs+300)*BLAST_FAST())); };
+    AUD.onplaying=()=>{ if(!live()) return; started=true; BLAST_STAGES.feedback='playing'; BLAST_T.push(setTimeout(()=>{ if(live()) end('slow'); },(maxMs+300)*BLAST_FAST())); };
     AUD.onended=()=>{ if(!live()) return; end('ok'); };
     AUD.onerror=()=>{ if(!live()) return; end('fail'); };
     const p=AUD.play(); if(p&&p.catch) p.catch(e=>{ if(!live()) return; end(e&&e.name==='NotAllowedError'?'blocked':'fail'); });
     BLAST_T.push(setTimeout(()=>{ if(live()&&!started) end('slow'); },4000*BLAST_FAST()));   // 回饋到期還沒開始播就收掉
-  }catch(e){ end('fail'); }
+  }catch(e){ end(e&&e.name==='NotAllowedError'?'blocked':'fail'); }
 }
 function bAudioWorse(state){ const rank={ok:0,slow:1,long:1,blocked:2,fail:3}; if((rank[state]||0)>(rank[BLAST_AUDIO]||0)) BLAST_AUDIO=state; }
 /* 一個播放任務。cb 在「播完」或「文字停留結束」時呼叫一次。
@@ -2164,9 +2165,12 @@ function blastFinish(result,answer){
   }
   bPlayOnce('w',c.id,1.0);   // 回饋音只播一次；閱讀計時獨立於它成不成功
   $('#bnext').onclick=()=>blastClose('continue');
-  if(result!=='ok'){ bAfter(4000,()=>{ bStop(); learnStart('text'); const t=$('#bteach'); if(t) t.innerHTML='看著正解<b>再念一次</b>，這輪先到這裡'; }); }
+  // 4 秒後切「再念一次」：合法音檔還在播就等它播完再切（不硬切句尾）；沒在播就立刻切並收掉音訊
+  if(result!=='ok'){ bAfter(4000,()=>{ if(BLAST_STAGES.feedback==='playing'){ BLAST_FB_TEACH_WAIT=true; } else { bStop(); feedbackTeach(); } }); }
   bAfter(result==='ok'?4000:8000,()=>{ const b=$('#bnext'); if(b){ b.disabled=false; } });
 }
+let BLAST_FB_TEACH_WAIT=false;
+function feedbackTeach(){ learnStart('text'); const t=$('#bteach'); if(t) t.innerHTML='看著正解<b>再念一次</b>，這輪先到這裡'; }
 /* undo：依 attempt 回滾這次的統計（冪等，跨下一張也行）、記撤銷事件 */
 function blastUndo(attempt){
   const r=BLAST_RESULTS[attempt]; if(!r||r.undone) return; r.undone=true;
@@ -2176,7 +2180,8 @@ function blastUndo(attempt){
 }
 /* 終止：所有退出路徑共用，一次性 */
 function blastEnd(why){
-  if(BLAST_ENDED) return; BLAST_ENDED=true; learnPause();
+  if(BLAST_ENDED) return; BLAST_ENDED=true; learnPause(); BLAST_FB_TEACH_WAIT=false;
+  Object.keys(BLAST_STAGES).forEach(k=>{ if(BLAST_STAGES[k]==='playing'){ BLAST_STAGES[k]='cancel'; blastLog('blast_audio',{stage:k==='feedback'?'feedback':k,state:'cancel',kind:k}); } });   // 退出時還在播的：記取消
   const r=BLAST_RESULTS[BLAST_ATTEMPT]; const result=BLAST_RESULT||(BLAST_STARTED?'quit':'cancel');
   if(!BLAST_RESULT&&BLAST_STARTED){ blastStat('quit'); if(r) r.result='quit'; }
   blastLog('blast_end',{result,why,stage:$('#bstage').textContent,audio:BLAST_AUDIO,ex:BLAST_EX?BLAST_EX.aud:null,selectedMode:BLAST_EX?BLAST_EX.mode:null,stages:BLAST_STAGES,ms:learnMs(),wallMs:Date.now()-BLAST_OPEN_T0});
