@@ -341,6 +341,7 @@ body.hidezh #study .exzh{display:none!important}
 .bc1{font-size:12px;letter-spacing:.2em;color:var(--muted)}.bcw{font-size:40px;font-weight:800;color:var(--navy);margin-top:6px}.bck{font-size:16px;color:var(--muted)}
 .bcq{margin-top:12px;font-size:15px;color:var(--navy);font-weight:600}.bcf{margin-top:10px;font-size:11px;color:var(--muted);letter-spacing:.06em}
 .bwrong{color:var(--orange);font-weight:700}
+mark.btarget{background:#fff0c2;color:inherit;border-radius:4px;padding:0 2px}
 .blastbtn{display:block;margin:10px auto 0;padding:9px 16px;border-radius:12px;border:1.5px solid var(--orange);background:#fff8ee;color:var(--orange);font-weight:800;font-size:14px;cursor:pointer}
 .blastbtn small{font-weight:500;color:var(--muted);margin-left:4px}
 @media (prefers-reduced-motion: reduce){.bprog i{transition:none}.bstamp{transform:none}.card.pop,.card{animation:none!important;transition:none!important}}
@@ -611,6 +612,7 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
         <button data-fmt="md" class="on">📝 Markdown</button>
         <button data-fmt="notion">📋 Notion 表格</button>
         <button data-fmt="remnote">🧠 RemNote 填空</button>
+        <button data-fmt="events">🧪 事件 JSON</button>
       </div>
       <div class="psub" id="exHint" style="margin-bottom:6px"></div>
       <textarea id="exportText" readonly style="width:100%;min-height:230px;font:13px/1.55 ui-monospace,Menlo,monospace;border:1px solid #d8e0ea;border-radius:10px;padding:10px;background:#fbfdff;color:#26323f;resize:vertical;-webkit-user-select:text;user-select:text;box-sizing:border-box"></textarea>
@@ -1643,6 +1645,13 @@ function buildExport(fmt){
 }
 function exToast(msg){ let t=document.getElementById('_extoast'); if(!t){t=document.createElement('div');t.id='_extoast';t.style.cssText='position:fixed;left:50%;bottom:42px;transform:translateX(-50%);background:#26323f;color:#fff;padding:10px 18px;border-radius:22px;font-size:14px;z-index:9999;opacity:0;transition:opacity .2s';document.body.appendChild(t);} t.textContent=msg; t.style.opacity='1'; clearTimeout(t._h); t._h=setTimeout(()=>t.style.opacity='0',1600); }
 function refreshExport(){
+  if(EXPORT_FMT==='events'){
+    // 爆記／一般作答的本機事件（ja_events）＋爆記計數：拿去分析用的原始資料，不含任何輸入文字
+    const pack={v:1,app:'単語ノート',exportedAt:new Date().toISOString(),blast:LS.get('ja_blast',{}),events:LS.get('ja_events',[])};
+    $('#exportText').value=JSON.stringify(pack,null,1);
+    $('#exHint').textContent='本機學習事件（含爆記）。只在這台裝置上，匯出才會離開。';
+    return;
+  }
   $('#exportText').value=buildExport(EXPORT_FMT);
   $('#exHint').textContent = EXPORT_FMT==='remnote'
     ? '貼進 RemNote：每行一張卡，{{ }} 為填空、{({ })} 為提示，:: 為正反卡。'
@@ -2073,6 +2082,27 @@ function bPlayThen(kind,id,rate,maxMs,textMs,cb,forceText){
   }catch(e){ onReject(e); }
 }
 function bStage(label,pct){ $('#bstage').textContent=label; $('#bfill').style.width=pct+'%'; }
+/* 在已渲染的例句裡把目標詞包成 <mark>：只找不在 <rt> 裡的文字節點；整詞找不到就退到漢字詞幹；再找不到就不標 */
+function markTarget(el,c){
+  if(!el||!c) return false;
+  const nl=c.nl||'', kana=kanaOfCard(c)||'';
+  const walk=(root)=>{ const out=[]; const it=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentElement&&n.parentElement.closest('rt')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT}); let n; while((n=it.nextNode())) out.push(n); return out; };
+  const tryMark=(needle)=>{ if(!needle) return false; for(const n of walk(el)){ const i=n.nodeValue.indexOf(needle); if(i>=0){ const r=document.createRange(); r.setStart(n,i); r.setEnd(n,i+needle.length); const m=document.createElement('mark'); m.className='btarget'; r.surroundContents(m); return true; } } return false; };
+  /* 假名詞條、例句卻寫成漢字＋振假名（いく → 行[い]く）：把例句攤成讀音序列再找，命中的 ruby 整顆包進去 */
+  const tryRuby=(needle)=>{
+    if(!needle) return false;
+    const segs=[]; const rec=(root)=>{ for(const ch of root.childNodes){ if(ch.nodeType===3) segs.push({n:ch,t:ch.nodeValue,ruby:false}); else if(ch.nodeType===1){ if(ch.tagName==='RUBY'){ const rt=ch.querySelector('rt'); segs.push({n:ch,t:rt?rt.textContent:ch.textContent,ruby:true}); } else if(ch.tagName!=='RT') rec(ch); } } };
+    rec(el); let s=''; const map=[]; segs.forEach((g,gi)=>{ for(let k=0;k<g.t.length;k++) map.push({gi,k}); s+=g.t; });
+    const i=s.indexOf(needle); if(i<0) return false;
+    const a=map[i], b=map[i+needle.length-1], A=segs[a.gi], B=segs[b.gi];
+    if(!A.ruby&&!B.ruby&&a.gi===b.gi) return false; // 純文字命中交給 tryMark
+    const r=document.createRange();
+    if(A.ruby) r.setStartBefore(A.n); else r.setStart(A.n,a.k);
+    if(B.ruby) r.setEndAfter(B.n); else r.setEnd(B.n,b.k+1);
+    const m=document.createElement('mark'); m.className='btarget'; m.appendChild(r.extractContents()); r.insertNode(m); return true;
+  };
+  return tryMark(nl) || tryRuby(kana) || tryMark(nl.replace(/[ぁ-ゖ]+$/,'')) || tryMark(kana);
+}
 function startBlast(cardId){
   const card=cardById(cardId); if(!blastCanRun(card)||BLAST_ACTIVE) return;
   const studyOpen=!$('#study').classList.contains('hidden');
@@ -2083,7 +2113,7 @@ function startBlast(cardId){
   if(BLAST_DONE.has(key)) return;
   stopAllAudio(); bStop();
   BLAST_GEN++; BLAST_CARD=card; BLAST_KEY=key; BLAST_CTX={fam:curFam(),mode:CFG.dir,inStudy:isCur};
-  BLAST_ACTIVE=true; BLAST_NEXT=null; BLAST_RESULT=null; BLAST_INPUT_LOCK=false; BLAST_AUDIO='ok'; BLAST_COMP=false; BLAST_STARTED=false; BLAST_EX=null; BLAST_ENDED=false; BLAST_PROBE=null;
+  BLAST_ACTIVE=true; BLAST_NEXT=null; BLAST_RESULT=null; BLAST_INPUT_LOCK=false; BLAST_AUDIO='ok'; BLAST_COMP=false; BLAST_STARTED=false; BLAST_EX=null; BLAST_ENDED=false; BLAST_PROBE=null; BLAST_JUDGE='auto'; BLAST_SYN=null;
   BLAST_OPEN_T0=Date.now(); BLAST_T0=0; BLAST_LEARN=0; BLAST_SEG=0; BLAST_LEARN_LOGGED=false; BLAST_STAGES={};
   BLAST_ATTEMPT=BLAST_OPEN_T0.toString(36)+':'+card.id; BLAST_RESULTS[BLAST_ATTEMPT]={result:null,started:false,undone:false}; bClear();
   $('#blast').classList.remove('hidden');
@@ -2120,6 +2150,7 @@ function blastSeq(){
       blastLog('blast_ex',{ex:ex.aud,selectedMode:ex.mode,sec:ex.sec==null?null:Math.round(ex.sec*10)/10,reason:ex.reason||null});
       bStage('放進情境',40); const t3=Date.now();
       $('#bbody').innerHTML=`<div class="bgroup"><div class="bex">${ex.rb?rubyHtml(ex.rb):esc(ex.txt)}</div><div class="bexzh">${esc(ex.zh)}</div></div>`;
+      try{ markTarget($('#bbody .bex'),c); }catch(e){}
       bPlayThen(ex.aud,c.id,1.0,7000,4000,()=>bStageMin(t3,7000,()=>{
         // ④ 撤掉提示（4 秒）
         bStage('答案先下班',55); bStop(); learnStart('text');
@@ -2135,7 +2166,7 @@ function blastRecall(){
   $('#bbody').innerHTML=`<div class="bgroup"><div class="bzh">${esc(c.zh)}</div><div class="bhint">打出剛才那個字的假名</div>
     <input class="bin" id="bin" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" inputmode="text" lang="ja">
     <div class="bbtns"><button onclick="blastGiveUp()">想不起來</button><button class="go" onclick="blastSubmit()">送出</button></div>
-    <div class="bhint"><small>12 秒內想不出來也沒關係，會直接給你答案</small></div></div>`;
+    <div class="bhint"><small>12 秒內想不出來也沒關係，會直接給你答案</small><br><button class="reviewlink" style="margin:6px auto 0;padding:0" onclick="blastSelfReveal()">沒有日文鍵盤？用說的</button></div></div>`;
   const inp=$('#bin'); setTimeout(()=>inp.focus(),60);
   inp.addEventListener('compositionstart',()=>{ BLAST_COMP=true; });
   inp.addEventListener('compositionend',()=>{ BLAST_COMP=false; BLAST_COMP_END=Date.now(); });
@@ -2146,18 +2177,38 @@ function blastRecall(){
   });
   bAfter(12000,()=>blastFinish('timeout'));
 }
-function blastSubmit(){ if(!BLAST_ACTIVE||BLAST_INPUT_LOCK||BLAST_COMP) return; const v=toHira($('#bin')&&$('#bin').value); if(!v) return; BLAST_INPUT_LOCK=true; blastFinish(v===kanaOfCard(BLAST_CARD)?'ok':'wrong',v); }
+function blastSubmit(){
+  if(!BLAST_ACTIVE||BLAST_INPUT_LOCK||BLAST_COMP) return; const v=toHira($('#bin')&&$('#bin').value); if(!v) return; BLAST_INPUT_LOCK=true;
+  const c=BLAST_CARD;
+  if(v===kanaOfCard(c)){ blastFinish('ok',v); return; }
+  // 打出的是另一個同義詞（同中文、不同日文）：不是日文錯，是這輪練的字不同——算對，但講清楚
+  const sib=VOCAB.find(x=>x.id!==c.id&&!x.my&&kanaOfCard(x)===v&&zhBase(x.zh)===zhBase(c.zh));
+  if(sib){ BLAST_SYN=sib; blastFinish('ok',v); return; }
+  blastFinish('wrong',v);
+}
+let BLAST_SYN=null, BLAST_JUDGE='auto';
 function blastGiveUp(){ if(!BLAST_ACTIVE||BLAST_INPUT_LOCK) return; BLAST_INPUT_LOCK=true; blastFinish('giveup'); }
+/* 自評：先自己念出來，再揭曉、自己核對。跟自動判定分開記（judge:'self'），成功卡也標「自評」。 */
+function blastSelfReveal(){
+  if(!BLAST_ACTIVE||BLAST_INPUT_LOCK) return; BLAST_INPUT_LOCK=true; BLAST_JUDGE='self'; bClear(); const c=BLAST_CARD, kana=kanaOfCard(c);
+  blastLog('blast_selfreveal',{ms:learnMs()});
+  bStage('自己核對',80); learnStart('text');
+  $('#bbody').innerHTML=`<div class="bgroup"><div class="bhint">先念出來，再對答案</div><div class="bword">${esc(c.nl)}</div><div class="bkana">${esc(kana)}</div><div class="bzh">${esc(c.zh)}</div>
+    <div class="bhint">剛剛有想起來嗎？</div><div class="bbtns"><button onclick="blastSelf(false)">沒有</button><button class="go" onclick="blastSelf(true)">有想起來</button></div></div>`;
+  bAfter(20000,()=>blastSelf(false));
+}
+function blastSelf(ok){ if(!BLAST_ACTIVE||BLAST_RESULT) return; blastStat(ok?'okSelf':'wrongSelf'); blastFinish(ok?'ok':'wrong'); }
 function blastFinish(result,answer){
   if(!BLAST_ACTIVE||BLAST_RESULT) return;
   BLAST_RESULT=result; bClear(); const c=BLAST_CARD, kana=kanaOfCard(c);
   blastStat(result); BLAST_RESULTS[BLAST_ATTEMPT].result=result;
-  blastLog('blast_recall',{result,ms:learnMs(),judge:'auto',ex:BLAST_EX?BLAST_EX.aud:'e'});   // 提取結果；整輪終止另記 blast_end
+  blastLog('blast_recall',{result,ms:learnMs(),judge:BLAST_JUDGE,ex:BLAST_EX?BLAST_EX.aud:'e',synonym:BLAST_SYN?BLAST_SYN.id:null});   // 提取結果；整輪終止另記 blast_end
   bStage(result==='ok'?'抓到了':'先到這裡',100); learnStart('text');   // 回饋與再教也是學習
   const why = result==='timeout' ? '時間到了，先看答案' : result==='giveup' ? '沒關係，先看答案' : result==='wrong' ? `你打的是 <span class="bwrong">${esc(answer)}</span>` : '';
   if(result==='ok'){
-    $('#bbody').innerHTML=`<div class="bcatch"><div class="bc1">本日捕獲</div><div class="bcw">${esc(c.nl)}</div><div class="bck">${esc(kana)}　${esc(c.zh)}</div><div class="bcq">「你已經被我想起來了。」</div><div class="bcf">本輪無提示答對 · 単語ノート</div></div>
-      <div class="bhint">抓到了。<b>明天看你還在不在。</b></div><div class="bbtns"><button class="go" id="bnext" disabled>繼續</button></div>`;
+    const synNote=BLAST_SYN?`<div class="bhint">「${esc(BLAST_SYN.nl)}」也是「${esc(zhBase(c.zh))}」！這輪練的是 <b>${esc(c.nl)}</b></div>`:'';
+    $('#bbody').innerHTML=`<div class="bcatch"><div class="bc1">本日捕獲</div><div class="bcw">${esc(c.nl)}</div><div class="bck">${esc(kana)}　${esc(c.zh)}</div><div class="bcq">「你已經被我想起來了。」</div><div class="bcf">${BLAST_JUDGE==='self'?'本輪自評答對':'本輪無提示答對'} · 単語ノート</div></div>
+      ${synNote}<div class="bhint">抓到了。<b>明天看你還在不在。</b></div><div class="bbtns"><button class="go" id="bnext" disabled>繼續</button></div>`;
   } else {
     $('#bbody').innerHTML=`<div class="bgroup"><div class="bword">${esc(c.nl)}</div><div class="bkana">${esc(kana)}</div><div class="bzh">${esc(c.zh)}</div>
       <div class="bhint">${why}</div>
