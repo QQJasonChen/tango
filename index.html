@@ -417,10 +417,12 @@ mark.btarget{background:#fff0c2;color:inherit;border-radius:4px;padding:0 2px}
 .kmc{aspect-ratio:1;background:#fff;border:1.5px solid var(--line);border-radius:13px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;cursor:pointer;-webkit-user-select:none;user-select:none}
 .kmc:active{transform:scale(.95)}
 .kmc .g{font-size:26px;font-weight:700;color:var(--navy);line-height:1.1}
-.kmc .r{font-size:10px;color:var(--muted);margin-top:2px;letter-spacing:.02em}
-.kmc .m{position:absolute;top:5px;right:7px;font-size:10px;font-weight:800;color:var(--muted)}
+.kmc .r{font-size:10px;color:#5f6773;margin-top:2px;letter-spacing:.02em}   /* 5.8:1 on white */
+.kmc .m{position:absolute;top:5px;right:7px;font-size:10px;font-weight:800;color:#5f6773}
 .kmc.gap{visibility:hidden}
-.kmc.lock{opacity:.32}
+.kmc.lock{background:var(--bg);border-style:dashed;border-color:#ddd5c8}
+.kmc.lock .g{color:#8a8277}   /* 大字 3.4:1 過門檻；整格透明會連文字一起看不見 */
+.kmc.lock .r{color:#9a9287}
 .kmc.m1{background:#fdf0ec;border-color:#f3cfc6}
 .kmc.m2{background:#f7d5cd;border-color:#e6a496}
 .kmc.m3{background:var(--orange);border-color:var(--orange)} .kmc.m3 .g,.kmc.m3 .r,.kmc.m3 .m{color:#fff}
@@ -430,7 +432,9 @@ mark.btarget{background:#fff0c2;color:inherit;border-radius:4px;padding:0 2px}
 .kpbig{font-size:88px;font-weight:700;color:var(--navy);line-height:1.1;text-align:center}
 .kprom{text-align:center;color:var(--muted);font-size:16px;margin-top:2px}
 .kpwords{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
-.kpw{border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;text-align:left;background:#fff;cursor:pointer}
+.kpw{border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;text-align:left;background:#fff;cursor:pointer;font:inherit;width:100%;display:block}
+.kpw .z{display:block}
+.kpw:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .kpw b{display:block;font-size:19px;color:var(--navy)}
 .kpw small{display:block;color:var(--muted);font-size:12px}
 .kpw .z{font-size:13px;color:var(--text);margin-top:2px}
@@ -1040,7 +1044,10 @@ function deckCards(){
   if(CFG.theme) cards=cards.filter(c=>c.theme===CFG.theme);
   /* 五十音牌組只出「已解鎖的行」（目前練的那一套：平假名或片假名）。
      寫在這裡而不是 buildQueue，首頁計數、積壓保護、widget 才會跟佇列說同一件事。 */
-  if(CFG.deck==='KANA'){ const u=kanaUnlockedSet(CFG.kanaScript||'h'); cards=cards.filter(c=>u.has(c.nl)); }
+  if(CFG.deck==='KANA'){ const u=kanaUnlockedSet(CFG.kanaScript||'h');
+    /* 解鎖只管「新卡從哪一行發」。已經有排程的假名（任何家族）一律留在範圍內——
+       否則前一行答錯讓解鎖退回，後面已到期的複習卡會整排被藏掉。 */
+    cards=cards.filter(c=>u.has(c.nl) || ['recog','prod','listen'].some(f=>!!kanaOwnSrs(c.id,f))); }
   return cards;
 }
 /* B2：永遠可用的「清除主題」出口——不管目前主題 chip 是不是空的、是不是根本沒出現在
@@ -1049,7 +1056,7 @@ function clearTheme(){ CFG.theme=null; LS.set('ja_cfg',CFG); renderHome(); }
 function newCount(){return deckCards().filter(c=>!srsGet(c.id)).length;}
 function dueNow(){const cards=deckCards();const due=cards.filter(c=>{const s=srsGet(c.id);return s&&s.due<=now();}).length;const fresh=Math.min(newLeftToday(),cards.filter(c=>!srsGet(c.id)).length);return due+fresh;}
 /* 桌面 widget：把「待複習數 / 連續天數 / 一個要複習的字」推給原生 App（存進 App Group 供 widget 讀）。純網頁環境沒有 webkit 橋接時安靜略過。 */
-function widgetWord(){const cards=deckCards();const due=cards.filter(c=>{const s=srsGet(c.id);return s&&s.due<=now();});const fresh=cards.filter(c=>!srsGet(c.id));const pool=due.length?due:fresh;const c=pool[0];return c?{word:c.nl||'',zh:c.zh||''}:{word:'',zh:''};}
+function widgetWord(){const cards=deckCards();const due=cards.filter(c=>{const s=srsGet(c.id);return s&&s.due<=now();});const fresh=newLeftToday()>0?cards.filter(c=>!srsGet(c.id)):[];/* 額度用完就別推新字給 widget，App 裡根本開不了 */const pool=due.length?due:fresh;const c=pool[0];return c?{word:c.nl||'',zh:c.zh||''}:{word:'',zh:''};}
 function pushWidget(){try{if(!(window.webkit&&webkit.messageHandlers&&webkit.messageHandlers.wjdata))return;const w=widgetWord();webkit.messageHandlers.wjdata.postMessage({due:dueNow(),streak:(STAT.streak||0),word:w.word,zh:w.zh});}catch(e){}}
 
 /* ---------- queue & SM-2 ---------- */
@@ -2367,7 +2374,6 @@ function rate(r){
   const {card}=QUEUE[qi];
   const t=todayStr();
   const isNewCard=!srsGet(card.id);   // 這張是今天第一次學到的新字嗎
-  if(r>=1 && levelOf(card)!=='KANA') recentPush(card.id);   // 想起來的字才算「學會」，假名不進這個清單
   /* 快照要能「完整」還原，不能只記 queue 長度。
      舊版記 queueLen，但「再背一次」是把卡片 splice 到 qi+4 的**中間**，
      復原時 QUEUE.length=舊長度 砍掉的是**尾端那張**——實測會弄丟一張卡、
@@ -2382,9 +2388,10 @@ function rate(r){
     today:STAT.today, streak:STAT.streak, lastDay:STAT.lastDay,
     days:(DAYS[t]||0), newd:(NEWD[t]||0), day:t,
     queue:QUEUE.slice(), sessionTotal,
-    retry:RETRY.slice(), answers:sessionAnswers};
+    retry:RETRY.slice(), answers:sessionAnswers, recent:RECENT.slice()};   // recent 在 recentPush 之前快照
   if(BLAST_ACTIVE) lastSnap.blastAttempt=BLAST_ATTEMPT;
   lastSnap.rid=Date.now().toString(36)+':'+card.id;
+  if(r>=1 && levelOf(card)!=='KANA') recentPush(card.id);   // 想起來的字才算「學會」；一定要在快照之後，復原才退得回去
   { const m=RATE_META; const now=Date.now();
     evPush({v:1,ev:'review_attempt',rid:lastSnap.rid,t:now,card:card.id,r,fam:_fam,mode:CFG.dir,isNew:isNewCard,blast:BLAST_ACTIVE?BLAST_ATTEMPT:null,
       firstAnswerCorrect:m.firstOk, firstAnswerMs:(m.shownT&&m.firstT)?m.firstT-m.shownT:null, revealMs:(m.shownT&&m.revealT)?m.revealT-m.shownT:null,
@@ -2415,6 +2422,7 @@ function undo(){
   QUEUE.length=0; QUEUE.push(...s.queue);   // 還原整個佇列，不是只截長度
   qi=s.qi; sessionTotal=s.sessionTotal;
   RETRY=s.retry.slice(); sessionAnswers=s.answers;
+  if(s.recent){ RECENT=s.recent.slice(); LS.set('ja_recent',RECENT); }   // 首頁「最近學會的」也要退回
   lastSnap=null;
   cloudSave();   /* 復原也要進備份。原本只有評分會觸發，復原完直接關掉 App 的話，
                     雲端留的是「復原前」的狀態，換手機還原會把那張卡的評分變回來。 */
@@ -2822,8 +2830,11 @@ function kanaRows(script){ return script==='k'?KANA_ROWS_K:KANA_ROWS_H; }
 function kanaRoma(g){ return KANA_ROMA[toHira(g)]||''; }
 let KANA_BY_GLYPH=null;
 function kanaCard(g){ if(!KANA_BY_GLYPH){ KANA_BY_GLYPH={}; VOCAB.forEach(c=>{ if(levelOf(c)==='KANA') KANA_BY_GLYPH[c.nl]=c; }); } return KANA_BY_GLYPH[g]; }
-function kanaMastery(g){ const c=kanaCard(g); if(!c) return 0; const s=srsGet(c.id,'recog'); if(!s) return 0;
-  if((s.interval||0)>=14) return 3; if((s.reps||0)>=2&&(s.interval||0)>=4) return 2; return 1; }
+/* 熟練度看三個家族各自「真的練過」的紀錄取最高——原本只看辨識，在中→日或聽力練熟的假名永遠不算，
+   下一行永遠不開。注意要拿家族自己的紀錄（MSRS[fam][id]），不能用 srsGet 的回退值，否則產出會抄辨識的分數。 */
+function kanaOwnSrs(id,fam){ return fam==='recog' ? SRS[id] : (MSRS[fam]||{})[id]; }
+function kanaLevelOf(s){ if(!s) return 0; if((s.interval||0)>=14) return 3; if((s.reps||0)>=2&&(s.interval||0)>=4) return 2; return 1; }
+function kanaMastery(g){ const c=kanaCard(g); if(!c) return 0; return Math.max(...['recog','prod','listen'].map(f=>kanaLevelOf(kanaOwnSrs(c.id,f)))); }
 function kanaUnlockedRows(script){ const rows=kanaRows(script); let n=1;
   for(let i=0;i<rows.length-1;i++){ if(rows[i].every(g=>!g||kanaMastery(g)>=2)) n=i+2; else break; } return n; }
 function kanaUnlockedSet(script){ const rows=kanaRows(script), n=kanaUnlockedRows(script), set=new Set();
@@ -2857,7 +2868,17 @@ function renderKanaMap(){
   }).join('')).join('');
   $('#kmProg').textContent=`${learned} / ${total} 會了`;
   const cur=rows[unl-1].filter(Boolean).join('');
-  $('#kmStudy').textContent=learned>=total?'全部會了，複習一輪':`練這一行：${cur}`;
+  /* 按鈕要說實話：到期的複習優先、再發目前這一行的新字；什麼都沒有就告訴他下次何時 */
+  { const cards=deckCards(); const due=cards.filter(c=>{const x=srsGet(c.id);return x&&x.due<=now();}).length;
+    const fresh=Math.min(newLeftToday(), cards.filter(c=>!srsGet(c.id)).length);
+    const b=$('#kmStudy'); b.disabled=false;
+    if(due+fresh===0){ const nxt=cards.map(c=>srsGet(c.id)).filter(Boolean).map(x=>x.due).sort((a,b)=>a-b)[0];
+      const hrs=nxt?Math.max(1,Math.round((nxt-now())/3600000)):0;
+      b.textContent = learned>=total ? `全部會了・下次複習${hrs>=24?` ${Math.round(hrs/24)} 天`:` ${hrs} 小時`}後` : '今天沒有要練的，明天再來';
+      b.disabled=true; }
+    else if(due&&fresh) b.textContent=`複習 ${due} 張＋練新的一行（${cur}）`;
+    else if(due) b.textContent=`複習到期的 ${due} 張`;
+    else b.textContent=`練這一行：${cur}`; }
   document.querySelectorAll('#kmGrid .kmc[data-g]').forEach(el=>{ el.onclick=()=>showKanaDetail(el.dataset.g); el.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();el.click();} }; });
 }
 function openKanaMap(){
@@ -2875,8 +2896,8 @@ function showKanaDetail(g){
     <div style="text-align:center;margin-top:12px">${HAS_AUDIO?`<button class="exmore" style="width:auto;padding:9px 18px" onclick="play('w',${c.id})">${I_SPK} 聽發音</button>`:''}</div>
     ${STROKES[g]?`<div class="ksbox"><div><div class="ksvg" id="ksAnim">${strokeSvg(g,true)}</div><div class="kslab">看它怎麼寫</div></div><div><div class="kcanvas" id="ksPad"><div class="ghost">${strokeSvg(g,false)}</div><canvas id="ksCanvas"></canvas></div><div class="kslab">跟著寫</div></div></div>
       <div class="ksbtns"><button onclick="strokeReplay('${g}')">再看一次</button><button onclick="strokeClear()">清掉重寫</button></div>`:''}
-    ${words.length?`<div class="kpwords">${words.map(w=>`<div class="kpw" onclick="play('w',${w.c.id})"><b>${esc(w.r)}</b><small>${esc(w.c.nl!==w.r?w.c.nl:'')}</small><div class="z">${esc(zhBase(w.c.zh))}</div></div>`).join('')}</div>
-      <div class="kpnone">這些字你現在每一個假名都認得，讀得出來</div>`
+    ${words.length?`<div class="kpwords">${words.map(w=>`<button type="button" class="kpw" onclick="play('w',${w.c.id})"><b>${esc(w.r)}</b><small>${esc(w.c.nl!==w.r?w.c.nl:'')}</small><span class="z">${esc(zhBase(w.c.zh))}</span></button>`).join('')}</div>
+      <div class="kpnone">${m>=2?'這些字你每一個假名都認得，讀得出來':'搭配這個假名，可以試讀這些真字'}</div>`
       :`<div class="kpnone">再多解鎖幾行，就會出現你讀得出來的真字</div>`}
     ${STROKES[g]?'<div class="kscredit">筆順資料：KanjiVG（CC BY-SA 3.0）</div>':''}`;
   $('#kanapop').classList.remove('hidden');
@@ -2895,11 +2916,12 @@ function strokeReplay(g){ const el=$('#ksAnim'); if(el) el.innerHTML=strokeSvg(g
 let KS_CTX=null;
 function strokePadInit(){
   const cv=$('#ksCanvas'); if(!cv) return; const r=cv.getBoundingClientRect(), dpr=window.devicePixelRatio||1;
+  if(r.width<10||r.height<10){ setTimeout(strokePadInit,120); return; }   // sheet 動畫中量到 0 就再等一下，別留 0×0 的畫布
   cv.width=r.width*dpr; cv.height=r.height*dpr; const ctx=cv.getContext('2d'); ctx.scale(dpr,dpr);
   ctx.lineWidth=7; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.strokeStyle='#d0463b'; KS_CTX=ctx;
   let down=false;
   const pos=e=>{ const b=cv.getBoundingClientRect(); return [e.clientX-b.left, e.clientY-b.top]; };
-  cv.onpointerdown=e=>{ down=true; cv.setPointerCapture(e.pointerId); const [x,y]=pos(e); ctx.beginPath(); ctx.moveTo(x,y); };
+  cv.onpointerdown=e=>{ down=true; try{ cv.setPointerCapture(e.pointerId); }catch(_){} const [x,y]=pos(e); ctx.beginPath(); ctx.moveTo(x,y); };
   cv.onpointermove=e=>{ if(!down) return; const [x,y]=pos(e); ctx.lineTo(x,y); ctx.stroke(); };
   cv.onpointerup=cv.onpointercancel=()=>{ down=false; };
 }
