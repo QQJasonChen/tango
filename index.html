@@ -8,7 +8,7 @@
 :root{
   --navy:#16273f; --navy2:#254470; --orange:#d0463b; --bg:#faf7f2; --card:#fff;
   --text:#1c2331; --muted:#8b94a3; --line:#ebe5dc;
-  --green:#3f8f5f; --amber:#c99a2e; --red:#a2544b; --blue:#2f6fa8;
+  --green:#357a51; --amber:#c99a2e; --red:#a2544b; --blue:#2f6fa8;
   --gold:#e8b04b; --shu-d:#b93a30;
   --shadow:0 2px 10px rgba(28,35,49,.055),0 12px 34px rgba(28,35,49,.05);
 }
@@ -28,6 +28,7 @@ body{font-family:-apple-system,'Segoe UI','Noto Sans TC',sans-serif;background:v
 .chip{display:flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--line);border-radius:999px;
   padding:6px 12px;font-size:13px;font-weight:700;color:var(--navy);box-shadow:var(--shadow)}
 .chip.fire{color:var(--orange)}
+.chip.fire.zero{color:var(--muted)} .chip.fire.zero svg,.chip.fire.zero img{opacity:.45;filter:grayscale(1)}
 .chip.pro{display:none}
 
 .home{padding:8px 18px 28px;display:flex;flex-direction:column;gap:16px}
@@ -41,6 +42,8 @@ body{font-family:-apple-system,'Segoe UI','Noto Sans TC',sans-serif;background:v
 .hero{background:linear-gradient(135deg,#0a1628,#14213d,#1f4178);color:#fff;border-radius:22px;padding:20px 22px;box-shadow:var(--shadow)}
 .hero .due{font-size:23px;font-weight:800;line-height:1.35}
 .hero .sub{color:#cdd9ec;font-size:13px;margin-top:8px}
+.hprog{height:5px;border-radius:99px;background:rgba(255,255,255,.14);margin-top:14px;overflow:hidden}
+.hprog i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--orange),#e8635a);transition:width .6s cubic-bezier(.2,.8,.2,1)}
 .scopeline{text-align:center;color:var(--muted);font-size:12.5px;font-weight:700;margin:-6px 0 0}
 .bigbtn{border:none;background:var(--orange);color:#fff;font-size:17px;font-weight:800;border-radius:15px;
   letter-spacing:.04em;padding:17px;width:100%;cursor:pointer;
@@ -52,6 +55,7 @@ body{font-family:-apple-system,'Segoe UI','Noto Sans TC',sans-serif;background:v
 .bigbtn.ghost:active{transform:scale(.98);box-shadow:var(--shadow)}
 .bigbtn:disabled{opacity:.5;cursor:default;box-shadow:none}
 .section-t{font-size:13px;font-weight:800;color:var(--muted);letter-spacing:1px;margin:6px 2px 0;display:flex;align-items:center;gap:6px}
+.section-t::before{content:'';width:3px;height:12px;border-radius:2px;background:var(--orange);flex:none;margin-right:2px}
 .seg{display:grid;grid-template-columns:repeat(6,1fr);gap:3px;background:#fff;
   border:1px solid var(--line);border-radius:14px;padding:4px;box-shadow:var(--shadow)}
 .seg button:nth-child(-n+2){grid-column:span 3}   /* 第一列兩個：方向 */
@@ -119,10 +123,13 @@ body{font-family:-apple-system,'Segoe UI','Noto Sans TC',sans-serif;background:v
 .section-t s{text-decoration:none;font-weight:600;letter-spacing:0;color:var(--muted)}
 
 .procta{display:block;width:100%;margin-top:10px;padding:11px;border:none;border-radius:12px;background:var(--orange);color:#fff;font-size:14px;font-weight:800;cursor:pointer}
-.procard{background:linear-gradient(135deg,#fff4e6,#ffe8cc);border:1px solid #ffd8a8;border-radius:18px;padding:18px;box-shadow:var(--shadow)}
-.procard h3{color:#b35200;font-size:16px}
+.procard{position:relative;background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:var(--shadow);overflow:hidden}
+.procard h3{color:var(--navy);font-size:16px}
+/* 朱印：日本的「無料」章，斜貼在右上角 */
+.procard::after{content:'無料';position:absolute;top:12px;right:14px;width:46px;height:46px;border:2.5px solid var(--orange);border-radius:50%;color:var(--orange);font-weight:800;font-size:13px;line-height:41px;text-align:center;transform:rotate(-14deg);opacity:.85;font-family:'Hiragino Mincho ProN','Yu Mincho',serif;letter-spacing:.05em;pointer-events:none}
+.procard.nofree::after{content:none}
 .procard ul{list-style:none;margin:10px 0;display:flex;flex-direction:column;gap:6px}
-.procard li{font-size:13.5px;color:#7a4a12}
+.procard li{font-size:13.5px;color:var(--text)}
 .procard li b{color:var(--orange)}
 .prounlock{border:none;background:linear-gradient(135deg,var(--orange),var(--shu-d));color:#fff;font-weight:800;border-radius:13px;padding:13px;width:100%;cursor:pointer;font-size:15px}
 .syncst{margin-top:14px;padding:11px 13px;border-radius:12px;font-size:13px;line-height:1.55}
@@ -245,8 +252,8 @@ body{font-family:-apple-system,'Segoe UI','Noto Sans TC',sans-serif;background:v
 .answeryours{text-align:center;margin-top:6px;font-size:13px;color:var(--muted)}
 .answeryours .dw.ok{color:var(--green)}
 .answeryours .dw.no{color:var(--red);font-weight:700;text-decoration:underline wavy}
-.rate{display:flex;gap:10px;margin-top:16px}
-.rate button{flex:1;border:none;border-radius:16px;padding:15px 6px;font-size:15px;font-weight:800;cursor:pointer;color:#fff;transition:transform .08s}
+.rate{display:flex;gap:8px;margin-top:16px}
+.rate button{flex:1;min-width:0;border:none;border-radius:16px;padding:15px 4px;font-size:15px;font-weight:800;cursor:pointer;color:#fff;transition:transform .08s;white-space:nowrap}
 .rate button:active{transform:scale(.96)}
 /* ---------- 左右滑動評分 ---------- */
 /* touch-action:pan-y 是關鍵：告訴瀏覽器垂直捲動照常給它處理，我們只接管水平。
@@ -267,12 +274,17 @@ body{font-family:-apple-system,'Segoe UI','Noto Sans TC',sans-serif;background:v
 @keyframes cardpop{from{transform:scale(.94) translateY(10px);opacity:0}to{transform:none;opacity:1}}
 .card.pop{animation:cardpop .22s cubic-bezier(.2,1.3,.4,1)}
 .rate small{display:block;font-size:11px;font-weight:600;opacity:.85;margin-top:2px}
-.r-again{background:var(--red)} .r-good{background:var(--blue)} .r-easy{background:var(--green)}
+.r-again{background:var(--red)} .r-hard{background:#8f5f0c} .r-good{background:var(--blue)} .r-easy{background:var(--green)}   /* 白字對比：5.4 / 5.5 / 5.3 / 5.2 */
 .actbtn{border:none;color:#fff;border-radius:16px;padding:16px;font-size:16px;font-weight:800;width:100%;margin-top:14px;cursor:pointer}
 .actbtn.navy{background:var(--navy)} .actbtn:active{transform:scale(.98)}
 .undo{position:absolute;left:0;top:14px;border:none;background:none;color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;padding:0}
 
-.done{text-align:center;padding:54px 24px;display:flex;flex-direction:column;gap:14px;align-items:center}
+.done{text-align:center;padding:54px 24px;display:flex;flex-direction:column;gap:14px;align-items:center;position:relative}
+/* 済＝做完了。蓋章：從大縮到位、微微歪、邊緣略透（像真的印泥）。每次進完成頁重播。 */
+.hanko{position:absolute;top:48px;right:calc(50% - 118px);width:64px;height:64px;border:3px solid var(--orange);border-radius:50%;color:var(--orange);font-family:'Hiragino Mincho ProN','Yu Mincho',serif;font-size:34px;font-weight:700;line-height:58px;text-align:center;transform:rotate(-14deg);opacity:.9;pointer-events:none;box-shadow:inset 0 0 0 1.5px #fff,inset 0 0 0 3px var(--orange)}
+.hanko.stamp{animation:hanko-in .42s cubic-bezier(.2,1.4,.4,1) .35s both}
+@keyframes hanko-in{0%{transform:rotate(-14deg) scale(2.2);opacity:0}70%{transform:rotate(-14deg) scale(.94);opacity:.95}100%{transform:rotate(-14deg) scale(1);opacity:.9}}
+@media (prefers-reduced-motion: reduce){.hanko.stamp{animation:none}}
 .done .emoji{font-size:64px;line-height:1}
 .doneJp{font-family:'Hiragino Mincho ProN','Yu Mincho',serif;font-size:13px;color:var(--muted);letter-spacing:.24em;margin-top:-6px}
 .done h2{color:var(--navy);font-size:24px}
@@ -480,6 +492,45 @@ mark.btarget{background:#fff0c2;color:inherit;border-radius:4px;padding:0 2px}
 /* ── 吉祥物：企鵝（純 SVG，任何尺寸清晰）。首頁一列：小企鵝＋一句話＋最近學會的字 ── */
 .mascot{display:flex;gap:12px;align-items:flex-end;margin:2px 0 8px}
 .mascot .pg{flex:none}
+/* 企鵝的動作。原則：平常時候小動作（眨眼、張望、偶爾拍翅），有事發生才大動作（跳、抖）。
+   transform-origin 用 viewBox 座標；每個部位各自轉，不要整隻一起飄。 */
+.pg-svg{transform-origin:50% 90%;animation:pg-bob 3.6s ease-in-out infinite}
+.pg-svg .pg-eyes{transform-origin:50px 42px;animation:pg-blink 4.2s ease-in-out infinite}
+.pg-svg .pg-look{animation:pg-look 9s ease-in-out infinite}
+.pg-svg .pg-wl{transform-origin:24px 52px;animation:pg-flap-l 6.5s ease-in-out infinite}
+.pg-svg .pg-wr{transform-origin:76px 52px;animation:pg-flap-r 6.5s ease-in-out infinite}
+.pg-svg .pg-tail{transform-origin:62px 62px;animation:pg-tail 3.6s ease-in-out infinite}
+@keyframes pg-bob{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-2px) rotate(-1.5deg)}}
+@keyframes pg-blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.08)}}
+@keyframes pg-look{0%,60%,100%{transform:translateX(0)}66%,78%{transform:translateX(2.4px)}84%,92%{transform:translateX(-1.6px)}}
+@keyframes pg-flap-l{0%,86%,100%{transform:rotate(0)}90%{transform:rotate(22deg)}94%{transform:rotate(-8deg)}97%{transform:rotate(12deg)}}
+@keyframes pg-flap-r{0%,86%,100%{transform:rotate(0)}90%{transform:rotate(-22deg)}94%{transform:rotate(8deg)}97%{transform:rotate(-12deg)}}
+@keyframes pg-tail{0%,100%{transform:rotate(0)}50%{transform:rotate(9deg)}}
+/* 開心：跳兩下（落地時壓扁一點）＋翅膀快拍，然後回到平常的呼吸 */
+.pg-svg.pg-happy{animation:pg-hop .7s cubic-bezier(.3,.9,.4,1.1) 2, pg-bob 3.6s ease-in-out 1.4s infinite}
+.pg-svg.pg-happy .pg-wl{animation:pg-flap-fast-l .35s ease-in-out 4}
+.pg-svg.pg-happy .pg-wr{animation:pg-flap-fast-r .35s ease-in-out 4}
+@keyframes pg-hop{0%{transform:translateY(0) scale(1,1)}18%{transform:translateY(-9px) scale(.96,1.05)}55%{transform:translateY(0) scale(1.06,.94)}75%{transform:translateY(-2px) scale(1,1)}100%{transform:translateY(0) scale(1,1)}}
+@keyframes pg-flap-fast-l{0%,100%{transform:rotate(0)}50%{transform:rotate(38deg)}}
+@keyframes pg-flap-fast-r{0%,100%{transform:rotate(0)}50%{transform:rotate(-38deg)}}
+/* 戳到：同開心，但只跳一下、拍兩下 */
+.pg-svg.pg-poke{animation:pg-hop .6s cubic-bezier(.3,.9,.4,1.1) 1, pg-bob 3.6s ease-in-out .6s infinite}
+.pg-svg.pg-poke .pg-wl{animation:pg-flap-fast-l .3s ease-in-out 2}
+.pg-svg.pg-poke .pg-wr{animation:pg-flap-fast-r .3s ease-in-out 2}
+/* 思考：整隻歪頭，眼睛不張望 */
+.pg-svg.pg-think .pg-all{transform-origin:50px 70px;animation:pg-tilt 3.2s ease-in-out infinite}
+@keyframes pg-tilt{0%,100%{transform:rotate(0)}40%,60%{transform:rotate(-6deg)}}
+/* 想睡：呼吸慢一倍、沉一點，z 往上飄 */
+.pg-svg.pg-sleepy{animation:pg-bob-slow 5.2s ease-in-out infinite}
+.pg-svg.pg-sleepy .pg-wl,.pg-svg.pg-sleepy .pg-wr{animation:none}
+.pg-svg .pg-zz{animation:pg-zz 2.6s ease-out infinite;opacity:0}
+.pg-svg .pg-zz2{animation-delay:1.1s}
+@keyframes pg-bob-slow{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-1px) rotate(2deg)}}
+@keyframes pg-zz{0%{opacity:0;transform:translate(0,4px)}25%{opacity:.85}100%{opacity:0;transform:translate(6px,-12px)}}
+/* 答錯／出狀況：左右抖兩下 */
+.pg-svg.pg-oops .pg-all{animation:pg-shake .45s ease-in-out 2}
+@keyframes pg-shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
+@media (prefers-reduced-motion: reduce){.pg-svg,.pg-svg *{animation:none!important}.pg-svg .pg-zz{opacity:.7}.hprog i{transition:none}}
 .mbubble{flex:1;background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:10px 14px;font-size:15px;line-height:1.5;color:var(--navy);position:relative}
 .mbubble::before{content:'';position:absolute;left:-8px;bottom:14px;border:7px solid transparent;border-right-color:#fff;border-left:0}
 .mbubble small{display:block;color:var(--muted);font-size:12px;margin-top:3px}
@@ -529,6 +580,7 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
       <div class="hero">
         <div class="due" id="heroHeadline">0</div>
         <div class="sub" id="heroSub"></div>
+        <div class="hprog" aria-hidden="true"><i id="heroBar"></i></div>
       </div>
       <div class="scopeline" id="scopeLine"></div>
       <div class="scopeline" id="homeTip" style="opacity:.75"></div>
@@ -554,7 +606,7 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
 
       <div class="procard" id="proCard">
         <h3>🔍 句型解說</h3>
-        <div style="font-size:13px;color:#7a4a12;margin-bottom:8px">五十音・N5・N4 免費看　·　N3 以上需解鎖<span id="tasteHint" class="hidden">　·　每天免費試看 <span class="n-taste">1</span> 句</span></div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:8px;padding-right:56px">五十音・N5・N4 免費看　·　N3 以上需解鎖<span id="tasteHint" class="hidden">　·　每天免費試看 <span class="n-taste">1</span> 句</span></div>
         <ul>
           <li>每句例句一整段<b>老師口吻的講解</b>：助詞為什麼這樣用、動詞怎麼變</li>
           <li>還會點出<b>學習者最容易搞錯的地方</b></li>
@@ -587,6 +639,7 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
   <!-- DONE -->
   <div id="done" class="done hidden">
     <div class="emoji" id="doneArt"></div>
+    <div class="hanko" id="doneHanko" aria-hidden="true">済</div>
     <h2 id="doneTitle">今天的份，做完了</h2>
     <div class="doneJp">お つ か れ さ ま</div>
     <p id="doneMsg">今天的複習完成了</p>
@@ -980,7 +1033,7 @@ const EXFIELD={e:['ex','exzh'],e2:['ex2','exzh2'],e3:['ex3','exzh3'],e4:['ex4','
 const DAY=86400000, now=()=>Date.now(),
   todayStr=()=>{const d=new Date(now());
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
-function rollDay(){const t=todayStr();if(STAT.todayDate!==t){if(STAT.lastDay){const diff=Math.round((new Date(t)-new Date(STAT.lastDay))/DAY);if(diff>1)STAT.streak=0;}STAT.today=0;STAT.todayDate=t;LS.set('ja_stat',STAT);}}
+function rollDay(){const t=todayStr();if(STAT.todayDate!==t){if(STAT.lastDay){const diff=Math.round((new Date(t)-new Date(STAT.lastDay))/DAY);if(diff>1)STAT.streak=0;}STAT.today=0;STAT.todayIds=[];STAT.todayDate=t;LS.set('ja_stat',STAT);}}
 rollDay();
 
 /* 標籤刻意不放 icon：「🎧 聽力」的耳機跟「聽力」兩個字講的是同一件事。
@@ -1069,16 +1122,37 @@ let QUEUE=[],qi=0,sessionTotal=0,lastSnap=null,exSeen=new Set();
    「本輪不重複卡數」與「本輪作答總次數」，不是全日累計。 */
 let RETRY=[], sessionCardCount=0, sessionAnswers=0, deferredRetry=false;
 function buildQueue(){BLAST_SESSION++;BLAST_ROUND=0;if(BLAST_ACTIVE)blastAbort();let cards=deckCards();if(CFG.dir==='listen')cards=cards.filter(c=>!c.my);const due=cards.filter(c=>{const s=srsGet(c.id);return s&&s.due<=now();});const fresh=cards.filter(c=>!srsGet(c.id)).slice(0,newLeftToday());let q=[...due,...fresh];for(let i=q.length-1;i>0;i--){const j=Math.floor((Math.sin(i*99.13+q.length)*0.5+0.5)*(i+1));[q[i],q[j]]=[q[j],q[i]];}QUEUE=q.map(c=>({card:c}));qi=0;sessionTotal=QUEUE.length;RETRY=[];sessionCardCount=QUEUE.length;sessionAnswers=0;deferredRetry=false;}
+/* 三鍵預覽用的「下次幾天後」，公式跟 schedule() 一致（不寫 due、不存） */
+function previewInterval(s,rating){
+  const reps=s.reps||0, ease=s.ease||2.5, iv=s.interval||0;
+  if(rating===3) return reps===0?1:Math.max((iv||1)+1,Math.round((iv||1)*1.2));
+  if(reps===0){ let b=rating===2?3:1; if(s.lf) b=Math.max(b,Math.round(s.lf*0.3)); return b; }
+  if(reps===1) return rating===2?6:3;
+  return Math.max(1,Math.round(iv*ease*(rating===2?1.3:1)));
+}
 function schedule(id,rating){
   /* ⚠️ 深拷貝不可省。產出模式第一次碰到某張卡時，srsGet 會回退到 SRS 裡的物件；
      若直接就地修改，等於把辨識模式的排程也一起改掉——分開排程就白做了。 */
   const _cur=srsGet(id);
   let s=_cur?JSON.parse(JSON.stringify(_cur)):{interval:0,ease:2.5,reps:0,lapses:0};
   if(rating===0){
-  /* 只有「已經記起來過又忘掉」才算一次 lapse。第一次見面答不出來是學習過程，不是弱點。
-     原本無條件 +1，配上 leech 門檻 1 次 → 新字第一次按「再背一次」就被歸進弱點牌組，
-     那個牌組於是裝滿「還沒看過的字」而不是「一直忘的字」。 */
-  if((s.reps||0)>=2) s.lapses=(s.lapses||0)+1;s.reps=0;s.ease=Math.max(1.3,(s.ease||2.5)-0.2);s.interval=0;s.due=now()+60000;}else{if((s.reps||0)===0)s.interval=rating===2?3:1;else if(s.reps===1)s.interval=rating===2?6:3;else s.interval=Math.max(1,Math.round(s.interval*(s.ease||2.5)*(rating===2?1.3:1)));s.ease=Math.min(3,(s.ease||2.5)+(rating===2?0.15:0));s.reps=(s.reps||0)+1;s.due=now()+s.interval*DAY;}srsSet(id,s);cloudSave();}
+    /* 只有「已經記起來過又忘掉」才算一次 lapse。第一次見面答不出來是學習過程，不是弱點。
+       同時記住忘掉前的間隔：一張 30 天的熟卡忘一次，下次想起來應該回到 9 天左右，
+       不是跟全新的字一樣從 1 天重來（原本就是這樣，等於一次失手抹掉幾個月）。 */
+    if((s.reps||0)>=2){ s.lapses=(s.lapses||0)+1; if((s.interval||0)>=4) s.lf=s.interval; }
+    s.reps=0; s.ease=Math.max(1.3,(s.ease||2.5)-0.2); s.interval=0; s.due=now()+60000;
+  } else if(rating===3){
+    /* 有點難：想起來了但很勉強。間隔只前進一點（×1.2）、ease 降一點；不歸零、也不當成正常記得。
+       原本只有三鍵，「勉強想起」的人要嘛按忘了（歸零、輪末再練，太重）要嘛按記得（間隔照 ease 放大，太輕）。 */
+    if((s.reps||0)===0) s.interval=1; else s.interval=Math.max((s.interval||1)+1,Math.round((s.interval||1)*1.2));   // 至少 +1 天，否則 1 天的卡永遠卡在 1（Codex 8）
+    s.ease=Math.max(1.3,(s.ease||2.5)-0.15); s.reps=(s.reps||0)+1; s.due=now()+s.interval*DAY; delete s.lf;
+  } else {
+    if((s.reps||0)===0){ s.interval=rating===2?3:1; if(s.lf){ s.interval=Math.max(s.interval,Math.round(s.lf*0.3)); delete s.lf; s.reps=1; /* 恢復的熟卡不是新卡：下一次直接走 ×ease，不再經過 3／6 天那關（Codex 2） */ } }
+    else if(s.reps===1) s.interval=rating===2?6:3;
+    else s.interval=Math.max(1,Math.round(s.interval*(s.ease||2.5)*(rating===2?1.3:1)));
+    s.ease=Math.min(3,(s.ease||2.5)+(rating===2?0.15:0)); s.reps=(s.reps||0)+1; s.due=now()+s.interval*DAY;
+  }
+  srsSet(id,s);cloudSave();}
 
 /* ---------- audio ---------- */
 let AUD=null,curExs=[],curCardId=null,AUTOPLAY_T=null,AUDIO_GEN=0;   // AUDIO_GEN：任何一種播放的世代；離頁／換卡／新播放／爆記開始都 +1，舊回呼一律失效
@@ -1244,7 +1318,7 @@ const DAY0=86400000;
 function packState(){
   const srs={};
   for(const k in SRS){ const s=SRS[k]||{};
-    srs[k]=[s.interval|0, Math.round((s.ease||2.5)*10), s.reps|0, s.lapses|0, Math.round((s.due||0)/DAY0)]; }
+    srs[k]=[s.interval|0, Math.round((s.ease||2.5)*10), s.reps|0, s.lapses|0, Math.round((s.due||0)/DAY0)]; if(s.lf) srs[k].push(s.lf|0); }   // 第 6 格：忘掉前的間隔（Codex：少了這格，還原後熟卡又從 1 天重來）
   /* v2 起把熱力圖、自建卡、每日配額也納進來。v1 只備 SRS 系列，所以換手機後
      熱力圖整片歸零、自己打字建的生字卡直接消失——那是使用者自己輸入的內容，
      掉了沒有任何地方救得回來。這幾份都很小（DAYS 一年約 7KB），不影響 1MB 上限。 */
@@ -1253,7 +1327,7 @@ function packState(){
   const msrs={};
   for(const f in MSRS){ const src=MSRS[f]||{}, dst={};
     for(const k in src){ const x=src[k]||{};
-      dst[k]=[x.interval|0, Math.round((x.ease||2.5)*10), x.reps|0, x.lapses|0, Math.round((x.due||0)/DAY0)]; }
+      dst[k]=[x.interval|0, Math.round((x.ease||2.5)*10), x.reps|0, x.lapses|0, Math.round((x.due||0)/DAY0)]; if(x.lf) dst[k].push(x.lf|0); }
     if(Object.keys(dst).length) msrs[f]=dst; }
   return {v:3,t:Date.now(),srs,star:[...STAR],exstar:[...EXSTAR],stat:STAT,cfg:CFG,
           days:DAYS,my:MYCARDS,newd:NEWD,newx:NEWX,msrs};
@@ -1262,7 +1336,7 @@ function unpackState(o){
   if(!o||!(o.v===1||o.v===2||o.v===3)||!o.srs) return false;   // v1/v2 的舊備份仍要讀得回來
   const srs={};
   for(const k in o.srs){ const a=o.srs[k]; if(!Array.isArray(a)||a.length<5) continue;
-    srs[k]={interval:a[0],ease:a[1]/10,reps:a[2],lapses:a[3],due:a[4]*DAY0}; }
+    srs[k]={interval:a[0],ease:a[1]/10,reps:a[2],lapses:a[3],due:a[4]*DAY0}; if(a[5]) srs[k].lf=a[5]; }
   SRS=srs;                       LS.set('ja_srs',SRS);
   STAR=new Set(o.star||[]);      LS.set('ja_star',[...STAR]);
   EXSTAR=new Set(o.exstar||[]);  LS.set('ja_exstar',[...EXSTAR]);
@@ -1287,7 +1361,7 @@ function unpackState(o){
     for(const f in o.msrs){ const src=o.msrs[f]||{}, dst={};
       for(const k in src){ const a=src[k];
         if(!Array.isArray(a)||a.length<5) continue;
-        dst[k]={interval:a[0],ease:a[1]/10,reps:a[2],lapses:a[3],due:a[4]*DAY0}; }
+        dst[k]={interval:a[0],ease:a[1]/10,reps:a[2],lapses:a[3],due:a[4]*DAY0}; if(a[5]) dst[k].lf=a[5]; }
       m[f]=dst; }
     MSRS=m; LS.set('ja_msrs',MSRS);
   }
@@ -1453,7 +1527,7 @@ $('#proCardBtn').onclick=()=>{
   if(FREE_GRAM_LEVELS.includes(CFG.deck)){ const c=deckCards().find(x=>hasGram(x)&&x.ex) || VOCAB.find(x=>levelOf(x)==='N5'&&hasGram(x)&&x.ex); if(c){ showGram(c.id,'ex'); return; } }
   openPaywall();
 };
-function updateProCardCta(){ const b=$('#proCardBtn'); if(b) b.textContent = FREE_GRAM_LEVELS.includes(CFG.deck) ? '看看免費的文法解說' : '看看解鎖了有什麼'; }
+function updateProCardCta(){ const free=FREE_GRAM_LEVELS.includes(CFG.deck); const b=$('#proCardBtn'); if(b) b.textContent = free ? '看看免費的文法解說' : '看看解鎖了有什麼'; const c=$('#proCard'); if(c) c.classList.toggle('nofree',!free); }
 $('#closePw').onclick=closePaywall;
 $('#wpClose').onclick=()=>$('#wordpop').classList.add('hidden');
 
@@ -1794,7 +1868,7 @@ function renderHome(){
   $('#home').classList.remove('hidden');$('#study').classList.add('hidden');$('#done').classList.add('hidden');
   $('#sentences').classList.add('hidden');$('#browse').classList.add('hidden');
   const pro=isPro();
-  $('#streakChip').innerHTML=ico('s_streak',19)+'連續 '+(STAT.streak||0)+' 天';
+  $('#streakChip').innerHTML=ico('s_streak',19)+'連續 '+(STAT.streak||0)+' 天'; $('#streakChip').classList.toggle('zero',!(STAT.streak>0));
   pushWidget();
   $('#streakChip').style.cursor='pointer'; $('#streakChip').onclick=openHeat;
   $('#proChip').textContent = pro?'⭐ Pro':'⭐ 升級 Pro';
@@ -1902,6 +1976,12 @@ function renderHome(){
   const curEmpty = curCards.length===0;
   $('#heroHeadline').textContent = curEmpty ? '這個篩選沒有字' : (due===0 ? '今天的份都做完了 ✓' : (newN>0 ? `今天學 ${due} 張` : `今天複習 ${due} 張`));
   $('#heroSub').textContent = curEmpty ? '換個級別或主題看看' : `新字 ${newN}・複習 ${reviewN}`;
+  /* 進度條只看「這個範圍」：分子＝今天在這個範圍做過的卡（不是全 App 的作答次數，不然換牌組會顯示 99%），
+     分母再加上一分鐘內要重練的卡（按「沒想起來」的那張），否則那一分鐘會先 100% 再倒退（Codex 3） */
+  { const ids=new Set(STAT.todayIds||[]); const _n=now();
+    const doneT=curCards.filter(c=>ids.has(c.id)).length;
+    const relearn=curCards.filter(c=>{ const x=srsGet(c.id); return x&&x.due>_n&&x.due<=_n+60000; }).length;
+    const tot=doneT+due+relearn; const bar=$('#heroBar'); if(bar) bar.style.width = (curEmpty||tot===0) ? '0%' : Math.round(100*doneT/tot)+'%'; }
   $('#scopeLine').textContent = `${deckLabel()}　${numFmt(curCards.length)} 字`;
   // 一句情境提示：新手講免費解說在哪裡、N3 以上講每天可試看幾句——只講一件事，不堆促銷
   const tipEl=$('#homeTip'); if(tipEl){
@@ -2073,14 +2153,14 @@ function revealBack(autoRate,extraTop){
     </div></div>`;
   $('#card').onclick=null;
   const s=srsGet(card.id)||{interval:0,ease:2.5,reps:0};
-  const ig=(s.reps||0)===0?1:(s.reps===1?3:Math.max(1,Math.round(s.interval*(s.ease||2.5))));
-  const ie=(s.reps||0)===0?3:(s.reps===1?6:Math.max(1,Math.round(s.interval*(s.ease||2.5)*1.3)));
+  const ih=previewInterval(s,3), ig=previewInterval(s,1), ie=previewInterval(s,2);
   /* 第一次翻面（一生一次）在三鍵上方多講一句在選什麼，之後不再出現，免得每張卡都要看。 */
   const tipShown=LS.get('ja_tip_rate',0);
   const rateTip = tipShown ? '' : '<div class="hintline" style="margin-top:0">依看答案前的記憶選擇</div>';
   if(!tipShown) LS.set('ja_tip_rate',1);
   $('#controls').innerHTML=`${rateTip}<div class="rate">
     <button class="r-again" data-r="0">沒想起來<small>輪末再練</small></button>
+    <button class="r-hard" data-r="3">有點難<small>${ih}天</small></button>
     <button class="r-good" data-r="1">想了一下<small>${ig}天</small></button>
     <button class="r-easy" data-r="2">立刻想起<small>${ie}天</small></button></div>`;
   document.querySelectorAll('.rate button').forEach(b=>b.onclick=()=>rate(+b.dataset.r));
@@ -2385,7 +2465,7 @@ function rate(r){
   const _own = _fam==='recog' ? SRS[card.id] : (MSRS[_fam]&&MSRS[_fam][card.id]);
   lastSnap={qi, id:card.id, fam:_fam,
     prev: _own?JSON.parse(JSON.stringify(_own)):null,
-    today:STAT.today, streak:STAT.streak, lastDay:STAT.lastDay,
+    today:STAT.today, todayIds:(STAT.todayIds||[]).slice(), streak:STAT.streak, lastDay:STAT.lastDay,
     days:(DAYS[t]||0), newd:(NEWD[t]||0), day:t,
     queue:QUEUE.slice(), sessionTotal,
     retry:RETRY.slice(), answers:sessionAnswers, recent:RECENT.slice()};   // recent 在 recentPush 之前快照
@@ -2399,6 +2479,7 @@ function rate(r){
   schedule(card.id,r);
   if(isNewCard) bumpNewToday(1);
   STAT.today=(STAT.today||0)+1;
+  { if(!Array.isArray(STAT.todayIds)) STAT.todayIds=[]; if(STAT.todayIds.indexOf(card.id)<0){ STAT.todayIds.push(card.id); if(STAT.todayIds.length>3000) STAT.todayIds.splice(0,500); } }
   if(STAT.lastDay!==t){STAT.streak=(STAT.streak||0)+1;STAT.lastDay=t;}
   DAYS[t]=(DAYS[t]||0)+1; LS.set('ja_days',DAYS);
   LS.set('ja_stat',STAT);
@@ -2416,7 +2497,7 @@ function undo(){
   if(lastSnap.blastAttempt){ blastUndo(lastSnap.blastAttempt); }
   const s=lastSnap;
   if(s.prev) srsSet(s.id, s.prev, s.fam); else srsDrop(s.id, s.fam);
-  STAT.today=s.today; STAT.streak=s.streak; STAT.lastDay=s.lastDay; LS.set('ja_stat',STAT);
+  STAT.today=s.today; if(s.todayIds) STAT.todayIds=s.todayIds.slice(); STAT.streak=s.streak; STAT.lastDay=s.lastDay; LS.set('ja_stat',STAT);
   DAYS[s.day]=s.days; if(!DAYS[s.day]) delete DAYS[s.day]; LS.set('ja_days',DAYS);
   NEWD[s.day]=s.newd; if(!NEWD[s.day]) delete NEWD[s.day]; LS.set('ja_newd',NEWD);
   QUEUE.length=0; QUEUE.push(...s.queue);   // 還原整個佇列，不是只截長度
@@ -2546,7 +2627,23 @@ function initSwipe(){
 let SESS = LS.get('ja_sessions', {n:0, days:[]});
 let RATED = LS.get('ja_rate_api', {t:0});
 const STORE_REVIEW_URL='https://apps.apple.com/tw/app/id6784779535?action=write-review';
-const FEEDBACK_MAIL='mailto:qqleveragelearning@gmail.com?subject='+encodeURIComponent('単語ノート 哪裡卡卡的');
+/* 回報信自動附一段使用摘要（天數／作答／模式／五十音／爆記／設定），寄信前使用者看得到、可以刪。
+   App 沒有任何追蹤後端，這是唯一知道「大家怎麼用」的管道。 */
+function usageSummary(){
+  try{
+    const days=Object.keys(DAYS||{}).length, total=Object.values(DAYS||{}).reduce((a,b)=>a+b,0);
+    const ev=LS.get('ja_events',[]); const modes={}; ev.forEach(e=>{ if(e&&e.ev==='review_attempt') modes[e.mode||'?']=(modes[e.mode||'?']||0)+1; });
+    const kana=KANA_ROWS_H.flat().filter(Boolean).filter(g=>kanaMastery(g)>=2).length;
+    const bl=LS.get('ja_blast',{});
+    const md={n2z:'日→中',z2n:'中→日',type:'打字',sentence:'造句',listen:'聽力'};
+    return ['— 使用摘要（自動附上，可刪）—',
+      `${IS_NATIVE?'iOS':'網頁'}・學習天數 ${days}・總作答 ${total}・連續 ${STAT.streak||0} 天`,
+      `有紀錄的字 ${new Set([...Object.keys(SRS||{}),...Object.values(MSRS||{}).flatMap(o=>Object.keys(o||{}))]).size}・五十音會了 ${kana}/46・爆記 ${bl.starts||0} 次`,
+      `模式 ${Object.entries(modes).map(([k,v])=>(md[k]||k)+' '+v).join('／')||'（還沒有）'}`,
+      `牌組 ${CFG.deck}・方向 ${md[CFG.dir]||CFG.dir}・每天新字 ${CFG.newPerDay??15}・Pro ${isPro()?'是':'否'}`].join('\n');
+  }catch(e){ return ''; }
+}
+function feedbackMail(){ return 'mailto:qqleveragelearning@gmail.com?subject='+encodeURIComponent('単語ノート 哪裡卡卡的')+'&body='+encodeURIComponent('\n\n\n'+usageSummary()); }
 /* 開外部連結。WKWebView 沒有 navigationDelegate 時，location= 會把 App 本身導走、
    window.open 什麼都不做，所以原生走 openurl handler（Swift 端只放行 apps.apple.com 與 mailto）。 */
 function openExternal(url){
@@ -2572,7 +2669,7 @@ let RATE_PENDING=0;
    冷卻時間戳只代表「API 真的被呼叫過」，不是「JS 曾經想呼叫」。 */
 window.onRateShown=function(){ RATE_PENDING=0; RATED={t:Date.now()}; LS.set('ja_rate_api', RATED); };
 $('#reviewBtn').onclick=()=>openExternal(STORE_REVIEW_URL);
-$('#moreFeedback').onclick=()=>openExternal(FEEDBACK_MAIL);
+$('#moreFeedback').onclick=()=>openExternal(feedbackMail());
 /* 評分與評論、回報問題只在原生 App 有意義（網頁版沒有 App Store、mailto 也開不了外部信箱），
    兩顆一起用同一個 IS_NATIVE 閘門顯示——這也是「更多」sheet 網頁 3 項／原生 5 項的來源。 */
 if(IS_NATIVE){ $('#reviewBtn').classList.remove('hidden'); $('#moreFeedback').classList.remove('hidden'); $('#tasteHint').classList.remove('hidden'); }
@@ -2591,6 +2688,7 @@ $('#moreClose').onclick=()=>$('#moreSheet').classList.add('hidden');
 document.querySelectorAll('#moreSheet .util button, #moreSheet .reviewlink').forEach(b=>b.addEventListener('click',()=>$('#moreSheet').classList.add('hidden')));
 function finishStudy(){$('#study').classList.add('hidden');$('#done').classList.remove('hidden');
   $('#doneArt').innerHTML=pengu('happy',132);
+  { const h=$('#doneHanko'); if(h){ h.classList.remove('stamp'); void h.offsetWidth; h.classList.add('stamp'); } }
   /* 標題：待再練清空（或這一輪本來就沒有）→「今天的份，做完了」；
      使用者選了「先完成，稍後再練」、還留著待再練的卡 →「這一輪完成了」。
      數字用「本輪」不重複卡數＋本輪作答總次數，不是全日累計——全日統計仍照舊存進
@@ -2778,22 +2876,40 @@ function renderBrowse(){
    沒有腮紅、沒有反光——跟 App 的插畫 icon 是同一種圖形語言。表情只靠眼睛的形狀。 */
 function pengu(state='idle', size=96){
   const B='#16273f', F='#f7efe2', SC='#d0463b', BK='#e8b04b', INK='#1c2331';
+  /* 眼睛分兩層：pg-eyes 負責眨（scaleY），pg-look 負責左右張望（translateX），兩個都只在 idle 有 */
   const eyes={
-    idle:  `<circle cx="42" cy="42" r="3.2" fill="${INK}"/><circle cx="58" cy="42" r="3.2" fill="${INK}"/>`,
-    happy: `<path d="M38 43 Q42 38 46 43" stroke="${INK}" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M54 43 Q58 38 62 43" stroke="${INK}" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-    think: `<circle cx="42" cy="42" r="3.2" fill="${INK}"/><circle cx="58" cy="41" r="3.2" fill="${INK}"/><path d="M54 34 q4 -2 8 0" stroke="${INK}" stroke-width="2.2" fill="none" stroke-linecap="round"/>`,
+    idle:  `<g class="pg-look"><g class="pg-eyes"><circle cx="42" cy="42" r="3.2" fill="${INK}"/><circle cx="58" cy="42" r="3.2" fill="${INK}"/></g></g>`,
+    happy: `<path d="M38 43 Q42 38 46 43" stroke="${INK}" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M54 43 Q58 38 62 43" stroke="${INK}" stroke-width="3" fill="none" stroke-linecap="round"/><circle cx="35" cy="49" r="3" fill="${SC}" opacity=".35"/><circle cx="65" cy="49" r="3" fill="${SC}" opacity=".35"/>`,
+    think: `<circle cx="42" cy="41" r="3.2" fill="${INK}"/><circle cx="58" cy="40" r="3.2" fill="${INK}"/><path d="M54 33 q4 -2 8 0" stroke="${INK}" stroke-width="2.2" fill="none" stroke-linecap="round"/>`,
     sleepy:`<path d="M38 42 h8" stroke="${INK}" stroke-width="3" stroke-linecap="round"/><path d="M54 42 h8" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>`,
     oops:  `<circle cx="42" cy="42" r="4.2" fill="none" stroke="${INK}" stroke-width="2.4"/><circle cx="58" cy="42" r="4.2" fill="none" stroke="${INK}" stroke-width="2.4"/>`,
   }[state]||'';
   const beak = state==='oops' ? `<circle cx="50" cy="50" r="2.6" fill="${BK}"/>` : `<path d="M47 48 L53 48 L50 52.5 Z" fill="${BK}"/>`;
-  return `<svg width="${size}" height="${size}" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  const zz = state==='sleepy' ? `<text class="pg-zz" x="70" y="30" font-size="11" font-weight="800" fill="${INK}" font-family="-apple-system,sans-serif">z</text><text class="pg-zz pg-zz2" x="78" y="20" font-size="8" font-weight="800" fill="${INK}" font-family="-apple-system,sans-serif">z</text>` : '';
+  return `<svg class="pg-svg pg-${state}" width="${size}" height="${size}" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <g class="pg-all">
+  <g class="pg-wing pg-wl"><path d="M24 52 q-8 12 -3 24 q5 -5 7 -18 Z" fill="${B}"/></g>
+  <g class="pg-wing pg-wr"><path d="M76 52 q8 12 3 24 q-5 -5 -7 -18 Z" fill="${B}"/></g>
   <path d="M50 8 C27 8 15 29 15 55 C15 80 29 92 50 92 C71 92 85 80 85 55 C85 29 73 8 50 8 Z" fill="${B}"/>
-  <path d="M24 52 q-8 12 -3 24 q5 -5 7 -18 Z" fill="${B}"/><path d="M76 52 q8 12 3 24 q-5 -5 -7 -18 Z" fill="${B}"/>
   <path d="M50 26 C36 26 29 40 29 58 C29 76 38 86 50 86 C62 86 71 76 71 58 C71 40 64 26 50 26 Z" fill="${F}"/>
-  ${eyes}${beak}
-  <path d="M33 58 q17 6 34 0 l1 5 q-18 7 -36 0 Z" fill="${SC}"/>
+  <g class="pg-face">${eyes}${beak}</g>
+  <g class="pg-scarf"><path d="M33 58 q17 6 34 0 l1 5 q-18 7 -36 0 Z" fill="${SC}"/><path class="pg-tail" d="M62 62 q6 4 5 12 q-4 -3 -7 -9 Z" fill="${SC}"/></g>
   <path d="M39 92 q4 -3 8 -1 M53 91 q4 -2 8 1" stroke="${BK}" stroke-width="3.6" fill="none" stroke-linecap="round"/>
+  ${zz}
+  </g>
   </svg>`;
+}
+/* 戳企鵝：跳一下＋拍翅膀＋回一句話。原本點了沒反應，有吉祥物卻不能互動很可惜。 */
+const POKE_LINES=[['なに？','什麼事？'],['くすぐったい！','好癢！'],['いっしょにがんばろう','一起加油'],['ぺんぎんだよ','我是企鵝喔'],['きょうもえらい！','今天也很棒！'],['ひとつずつ、ね','一個一個來'],['さむくないよ','我不冷喔']];
+let POKE_T=null;
+function pokeMascot(){
+  const a=$('#mascotArt'), b=$('#mascotSay'); if(!a||!b) return;
+  if(POKE_T){ clearTimeout(POKE_T); }
+  const [jp,zh]=POKE_LINES[Math.floor(Math.random()*POKE_LINES.length)];
+  a.innerHTML=pengu('happy',76); a.dataset.face='poke'; a.querySelector('.pg-svg').classList.add('pg-poke');
+  b.innerHTML=`${esc(jp)}<small>${esc(zh)}</small>`;
+  try{ if(IS_NATIVE&&window.webkit?.messageHandlers?.haptic) window.webkit.messageHandlers.haptic.postMessage('light'); }catch(e){}
+  POKE_T=setTimeout(()=>{ POKE_T=null; renderMascot(); },2600);
 }
 /* 最近學會的字：評分「想了一下」以上就進來，最多留 8 個，首頁顯示 4 個 */
 let RECENT = LS.get('ja_recent', []);
@@ -2813,8 +2929,12 @@ function mascotLine(){
 }
 function renderMascot(){
   const a=$('#mascotArt'), b=$('#mascotSay'); if(!a||!b) return;
+  if(POKE_T) return;   // 正在戳，2.6 秒後會自己回來
   const [jp,zh,face]=mascotLine();
-  a.innerHTML=pengu(face,76); b.innerHTML=`${esc(jp)}<small>${esc(zh)}</small>`;
+  if(a.dataset.face!==face){ a.innerHTML=pengu(face,76); a.dataset.face=face; }   // 表情沒變就留著原本的 SVG，不然每次重繪首頁眨眼都從頭數（Codex 5）
+  b.innerHTML=`${esc(jp)}<small>${esc(zh)}</small>`;
+  if(!a.dataset.poke){ a.dataset.poke='1'; a.onclick=pokeMascot; a.style.cursor='pointer'; a.setAttribute('role','button'); a.setAttribute('tabindex','0'); a.setAttribute('aria-label','戳企鵝');
+    a.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); pokeMascot(); } }; }
   const r=$('#mascotRecent'); if(!r) return;
   const cards=RECENT.map(cardById).filter(Boolean).slice(0,4);
   r.classList.toggle('hidden',cards.length===0);
@@ -3060,7 +3180,7 @@ document.addEventListener('keydown',e=>{
   if(BLAST_ACTIVE)return;   // 爆記遮罩開著：數字鍵不能繞過遮罩內的評分（會把 BLAST_RATING 清掉卻不啟動序列）
   if((CFG.dir==='type'||CFG.dir==='sentence')&&!revealed)return;
   if(!revealed&&(e.code==='Space'||e.code==='Enter')){e.preventDefault();reveal();}
-  else if(revealed&&e.key>='1'&&e.key<='3'){rate(+e.key-1);}
+  else if(revealed&&e.key>='1'&&e.key<='4'){rate([0,3,1,2][+e.key-1]);}
 });
 function applyHideZh(){document.body.classList.toggle('hidezh',!!CFG.hideZh);}
 /* 按鈕現在在卡背例句工具列（跟假名標註同一套「只重畫按鈕文字」寫法），不用整頁重來。 */
