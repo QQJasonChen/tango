@@ -444,6 +444,25 @@ mark.btarget{background:#fff0c2;color:inherit;border-radius:4px;padding:0 2px}
 .ksvg .num{font-size:11px;font-weight:800;fill:var(--orange)}
 @keyframes kdraw{to{stroke-dashoffset:0}}
 @keyframes kfade{to{opacity:1}}
+/* Drill 快問快答：一次 10 題，假名↔羅馬字雙向四選一 */
+.dbox{margin-top:8px}
+.dtop{display:flex;align-items:center;justify-content:space-between;color:var(--muted);font-size:13px;margin:4px 2px 10px}
+.dq{background:#fff;border:1.5px solid var(--line);border-radius:20px;padding:26px 18px;text-align:center}
+.dq .big{font-size:76px;font-weight:700;color:var(--navy);line-height:1.1}
+.dq .rom{font-size:44px;font-weight:700;color:var(--navy);letter-spacing:.04em}
+.dq .ask{font-size:13px;color:var(--muted);margin-top:8px}
+.dopts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.dopt{min-height:64px;border:1.5px solid var(--line);background:#fff;border-radius:16px;font-size:26px;font-weight:700;color:var(--navy);cursor:pointer;transition:transform .06s}
+.dopt.rom{font-size:22px}
+.dopt:active{transform:scale(.97)}
+.dopt.ok{background:#e6f4ea;border-color:#8fcaa2;color:var(--green)}
+.dopt.no{background:#fdecea;border-color:#efb1a9;color:var(--red)}
+.dopt.dim{opacity:.45}
+.dres{background:#fff;border:1.5px solid var(--line);border-radius:20px;padding:22px 18px;text-align:center}
+.dres .score{font-size:48px;font-weight:800;color:var(--navy)}
+.dres .sub{color:var(--muted);font-size:13px;margin-top:4px}
+.dmiss{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:14px}
+.dmiss span{border:1.5px solid #efb1a9;background:#fdecea;color:var(--red);border-radius:12px;padding:6px 12px;font-size:20px;font-weight:700}
 .kcanvas canvas{width:100%;height:100%;display:block;touch-action:none}
 .kcanvas .ghost{position:absolute;inset:0;pointer-events:none;opacity:.14}
 .kcanvas .ghost svg{width:100%;height:100%}
@@ -608,6 +627,8 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
     <div class="kmlegend"><span><i style="background:#fff"></i>還沒學</span><span><i style="background:#fdf0ec"></i>剛認識</span><span><i style="background:#f7d5cd"></i>會了</span><span><i style="background:var(--orange)"></i>熟了</span></div>
     <div class="kmrule">一行五個字全部「會了」，下一行才會亮起來。點任何一格看讀音、聽發音、看你已經讀得出來的真字。</div>
     <button class="bigbtn" id="kmStudy">練這一行</button>
+    <button class="subtoggle" id="kmDrill" style="margin-top:10px">⚡ 快問快答（10 題）</button>
+    <div class="dbox hidden" id="drillBox"></div>
   </div>
   <div id="kanapop" class="pw hidden">
     <div class="sheet">
@@ -2842,6 +2863,7 @@ function renderKanaMap(){
 function openKanaMap(){
   if(BLAST_ACTIVE) blastAbort('leave'); stopAllAudio();
   ['home','study','done','sentences','browse'].forEach(id=>$('#'+id).classList.add('hidden'));
+  if(DRILL) drillClose();
   $('#kanamap').classList.remove('hidden'); renderKanaMap(); window.scrollTo(0,0);
 }
 function showKanaDetail(g){
@@ -2883,10 +2905,63 @@ function strokePadInit(){
 }
 function strokeClear(){ const cv=$('#ksCanvas'); if(cv&&KS_CTX){ KS_CTX.clearRect(0,0,cv.width,cv.height); } }
 $('#kpClose').onclick=()=>$('#kanapop').classList.add('hidden');
-$('#kanaBack').onclick=()=>{ $('#kanamap').classList.add('hidden'); renderHome(); };
+$('#kanaBack').onclick=()=>{ if(DRILL) drillClose(); $('#kanamap').classList.add('hidden'); renderHome(); };
 $('#kmTabH').onclick=()=>{ CFG.kanaScript='h'; LS.set('ja_cfg',CFG); renderKanaMap(); };
 $('#kmTabK').onclick=()=>{ CFG.kanaScript='k'; LS.set('ja_cfg',CFG); renderKanaMap(); };
 $('#kmRomaji').onclick=()=>{ KM_ROMAJI=!KM_ROMAJI; renderKanaMap(); };
+/* ═══ Drill 快問快答 ═══
+   題庫＝目前這一套（平／片）已解鎖的假名。10 題，單數題「看假名選羅馬字」、雙數題「看羅馬字選假名」，
+   四選一，錯的選項優先從同一行拿（最容易搞混的），不夠再從其他已解鎖的拿。
+   每個假名在一場裡只有**第一次**作答計入排程（對＝想了一下、錯＝沒想起來），
+   不然連刷十場同一個字就能衝到「熟了」。答題也算進今日張數與熱力圖。 */
+let DRILL=null;
+function drillPool(){ const sc=CFG.kanaScript||'h'; return [...kanaUnlockedSet(sc)]; }
+function drillStart(){
+  const pool=drillPool(); if(pool.length<2) return;
+  const rows=kanaRows(CFG.kanaScript||'h');
+  const rowOf=g=>rows.findIndex(r=>r.includes(g));
+  const qs=[]; let bag=[];
+  for(let i=0;i<10;i++){ if(!bag.length) bag=pool.slice().sort(()=>Math.random()-.5); const g=bag.pop();
+    const same=pool.filter(x=>x!==g&&rowOf(x)===rowOf(g)).sort(()=>Math.random()-.5);
+    const other=pool.filter(x=>x!==g&&rowOf(x)!==rowOf(g)).sort(()=>Math.random()-.5);
+    const opts=[g,...same,...other].slice(0,4);
+    while(opts.length<4){ const all=rows.flat().filter(x=>x&&!opts.includes(x)); opts.push(all[Math.floor(Math.random()*all.length)]); }
+    qs.push({g, dir:i%2?'r2k':'k2r', opts:opts.sort(()=>Math.random()-.5)}); }
+  DRILL={qs,i:0,ok:0,miss:[],seen:new Set(),t0:Date.now(),lock:false};
+  $('#kmGrid').classList.add('hidden'); $('#kmStudy').classList.add('hidden'); $('#kmDrill').classList.add('hidden');
+  document.querySelector('#kanamap .kmlegend').classList.add('hidden'); document.querySelector('#kanamap .kmrule').classList.add('hidden');
+  $('#drillBox').classList.remove('hidden'); drillQ();
+}
+function drillQ(){
+  const d=DRILL; if(!d) return; const q=d.qs[d.i];
+  const prompt = q.dir==='k2r' ? `<div class="big">${q.g}</div><div class="ask">這個字怎麼念？</div>` : `<div class="rom">${kanaRoma(q.g)}</div><div class="ask">是哪一個假名？</div>`;
+  $('#drillBox').innerHTML=`<div class="dtop"><span>第 ${d.i+1} / ${d.qs.length} 題</span><span>答對 ${d.ok}</span></div>
+    <div class="dq">${prompt}</div>
+    <div class="dopts">${q.opts.map((o,k)=>`<button class="dopt ${q.dir==='k2r'?'rom':''}" data-k="${k}" onclick="drillAnswer(${k})">${q.dir==='k2r'?kanaRoma(o):o}</button>`).join('')}</div>
+    <button class="subtoggle" style="margin-top:14px" onclick="drillEnd(true)">先結束</button>`;
+  d.lock=false;
+  if(q.dir==='k2r' && HAS_AUDIO){ const c=kanaCard(q.g); if(c) setTimeout(()=>play('w',c.id),150); }
+}
+function drillAnswer(k){
+  const d=DRILL; if(!d||d.lock) return; d.lock=true; const q=d.qs[d.i]; const ok=q.opts[k]===q.g;
+  document.querySelectorAll('#drillBox .dopt').forEach((b,i)=>{ const isAns=q.opts[i]===q.g; b.classList.add(i===k?(ok?'ok':'no'):(isAns?'ok':'dim')); b.disabled=true; });
+  if(ok) d.ok++; else d.miss.push(q.g);
+  if(!d.seen.has(q.g)){ d.seen.add(q.g); const c=kanaCard(q.g); if(c){ schedule(c.id, ok?1:0); const t=todayStr();
+      STAT.today=(STAT.today||0)+1; if(STAT.lastDay!==t){STAT.streak=(STAT.streak||0)+1;STAT.lastDay=t;} DAYS[t]=(DAYS[t]||0)+1; LS.set('ja_days',DAYS); LS.set('ja_stat',STAT); } }
+  if(q.dir==='r2k' && HAS_AUDIO){ const c=kanaCard(q.g); if(c) play('w',c.id); }
+  setTimeout(()=>{ if(!DRILL) return; d.i++; if(d.i>=d.qs.length) drillEnd(false); else drillQ(); }, ok?550:1100);
+}
+function drillEnd(early){
+  const d=DRILL; if(!d) return; const secs=Math.round((Date.now()-d.t0)/1000), n=early?d.i:d.qs.length;
+  const miss=[...new Set(d.miss)];
+  $('#drillBox').innerHTML=`<div class="dres"><div class="score">${d.ok} / ${n}</div><div class="sub">${secs} 秒${early?'・提早結束':''}</div>
+    ${miss.length?`<div class="sub" style="margin-top:12px">這幾個再看一眼</div><div class="dmiss">${miss.map(g=>`<span onclick="showKanaDetail('${g}')">${g}</span>`).join('')}</div>`:'<div class="sub" style="margin-top:12px">全對。表上的顏色會慢慢變深。</div>'}
+    <div class="ksbtns" style="margin-top:16px"><button onclick="drillStart()">再來 10 題</button><button onclick="drillClose()">回五十音表</button></div></div>`;
+  DRILL=null;
+}
+function drillClose(){ DRILL=null; $('#drillBox').classList.add('hidden'); $('#kmGrid').classList.remove('hidden'); $('#kmStudy').classList.remove('hidden'); $('#kmDrill').classList.remove('hidden');
+  document.querySelector('#kanamap .kmlegend').classList.remove('hidden'); document.querySelector('#kanamap .kmrule').classList.remove('hidden'); renderKanaMap(); }
+$('#kmDrill').onclick=drillStart;
 $('#kmStudy').onclick=()=>{ CFG.deck='KANA'; CFG.theme=''; LS.set('ja_cfg',CFG); $('#kanamap').classList.add('hidden'); startStudy(); };
 $('#kanaMapBtn').onclick=openKanaMap;
 function openBrowse(){
