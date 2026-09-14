@@ -1094,7 +1094,7 @@ function levelCards(){
    CFG.deck='all'（全部級別）時交集就等於主題本身的全庫數量。 */
 function deckCards(){
   let cards=levelCards();
-  if(CFG.theme) cards=cards.filter(c=>c.theme===CFG.theme);
+  if(CFG.theme && CFG.deck!=='KANA') cards=cards.filter(c=>c.theme===CFG.theme);   // 假名卡沒有主題；舊設定殘留的 theme 會把片假名整組濾空（Codex 4-3）
   /* 五十音牌組只出「已解鎖的行」（目前練的那一套：平假名或片假名）。
      寫在這裡而不是 buildQueue，首頁計數、積壓保護、widget 才會跟佇列說同一件事。 */
   if(CFG.deck==='KANA'){ const u=kanaUnlockedSet(CFG.kanaScript||'h'); const isK=(CFG.kanaScript||'h')==='k';
@@ -1316,10 +1316,18 @@ function findZhSibling(typed,card){
    壓成 [interval, ease×10, reps, lapses, due以天為單位] 只剩 ~300KB。
    仍超過上限時不硬塞——保留既有的「進度轉移」手動匯出當逃生門。 */
 const DAY0=86400000;
+/* 一張卡的壓縮格式（舊版 App 只讀前五格：天、ease×10、reps、lapses、到期「天」）。
+   第 6 格 lf（忘掉前的間隔）、第 7 格 到期當天的「分鐘」、第 8 格 ease×100——新版優先讀這些，
+   舊版忽略多出來的格子。這樣新舊版共用同一份 iCloud 備份時，舊版不會拒讀再用只含一張卡的 v3 蓋掉整份（Codex 4-2）。
+   到期天改用 floor（不是 round），分鐘才補得回去；舊版讀到的到期最多提早 24 小時，方向是安全的。 */
+function packSrs(s){ const due=s.due||0, d=Math.floor(due/DAY0), m=Math.max(0,Math.round((due-d*DAY0)/60000));
+  return [s.interval|0, Math.round((s.ease||2.5)*10), s.reps|0, s.lapses|0, d, s.lf|0, m, Math.round((s.ease||2.5)*100)]; }
+function unpackSrs(a,v){ if(v===4) return {interval:a[0],ease:a[1]/100,reps:a[2],lapses:a[3],due:a[4]*60000,...(a[5]?{lf:a[5]}:{})};   // 50/51 兩個 TestFlight 版寫過的 v4
+  const o={interval:a[0],ease:(a[7]!=null&&Number.isFinite(+a[7]))?a[7]/100:a[1]/10,reps:a[2],lapses:a[3],due:a[4]*DAY0+((a[6]!=null&&Number.isFinite(+a[6]))?a[6]*60000:0)}; if(a[5]) o.lf=a[5]; return o; }
 function packState(){
   const srs={};
   for(const k in SRS){ const s=SRS[k]||{};
-    srs[k]=[s.interval|0, Math.round((s.ease||2.5)*100), s.reps|0, s.lapses|0, Math.round((s.due||0)/60000)]; if(s.lf) srs[k].push(s.lf|0); }   // v4：ease ×100、到期以分鐘存——原本以天四捨五入，「一分鐘後重練」還原後變隔天早上（Codex 3-3）   // 第 6 格：忘掉前的間隔（Codex：少了這格，還原後熟卡又從 1 天重來）
+    srs[k]=packSrs(s); }   // 第 6 格：忘掉前的間隔（Codex：少了這格，還原後熟卡又從 1 天重來）
   /* v2 起把熱力圖、自建卡、每日配額也納進來。v1 只備 SRS 系列，所以換手機後
      熱力圖整片歸零、自己打字建的生字卡直接消失——那是使用者自己輸入的內容，
      掉了沒有任何地方救得回來。這幾份都很小（DAYS 一年約 7KB），不影響 1MB 上限。 */
@@ -1328,17 +1336,16 @@ function packState(){
   const msrs={};
   for(const f in MSRS){ const src=MSRS[f]||{}, dst={};
     for(const k in src){ const x=src[k]||{};
-      dst[k]=[x.interval|0, Math.round((x.ease||2.5)*100), x.reps|0, x.lapses|0, Math.round((x.due||0)/60000)]; if(x.lf) dst[k].push(x.lf|0); }
+      dst[k]=packSrs(x); }
     if(Object.keys(dst).length) msrs[f]=dst; }
-  return {v:4,t:Date.now(),srs,star:[...STAR],exstar:[...EXSTAR],stat:STAT,cfg:CFG,
+  return {v:3,t:Date.now(),srs,star:[...STAR],exstar:[...EXSTAR],stat:STAT,cfg:CFG,
           days:DAYS,my:MYCARDS,newd:NEWD,newx:NEWX,msrs,recent:RECENT,blast:LS.get('ja_blast',{})};
 }
 function unpackState(o){
-  if(!o||!(o.v>=1&&o.v<=4)||!o.srs) return false;   // v1–v3 的舊備份仍要讀得回來
-  const MU=o.v>=4?60000:DAY0, EU=o.v>=4?100:10;   // v4 起：分鐘、ease ×100
+  if(!o||!(o.v>=1&&o.v<=4)||!o.srs) return false;   // v1–v3 的舊備份仍要讀得回來；v4 是 2.2(50)(51) 短暫用過的格式
   const srs={};
   for(const k in o.srs){ const a=o.srs[k]; if(!Array.isArray(a)||a.length<5) continue;
-    srs[k]={interval:a[0],ease:a[1]/EU,reps:a[2],lapses:a[3],due:a[4]*MU}; if(a[5]) srs[k].lf=a[5]; }
+    srs[k]=unpackSrs(a,o.v); }
   SRS=srs;                       LS.set('ja_srs',SRS);
   STAR=new Set(o.star||[]);      LS.set('ja_star',[...STAR]);
   EXSTAR=new Set(o.exstar||[]);  LS.set('ja_exstar',[...EXSTAR]);
@@ -1363,12 +1370,12 @@ function unpackState(o){
     for(const f in o.msrs){ const src=o.msrs[f]||{}, dst={};
       for(const k in src){ const a=src[k];
         if(!Array.isArray(a)||a.length<5) continue;
-        dst[k]={interval:a[0],ease:a[1]/EU,reps:a[2],lapses:a[3],due:a[4]*MU}; if(a[5]) dst[k].lf=a[5]; }
+        dst[k]=unpackSrs(a,o.v); }
       m[f]=dst; }
     MSRS=m; LS.set('ja_msrs',MSRS);
   }
   if(Array.isArray(o.recent)){ RECENT=o.recent.slice(0,8); LS.set('ja_recent',RECENT); }   // v4：最近學會的字與爆記累計也跟著走（Codex 3-4）
-  if(o.blast&&typeof o.blast==='object'){ LS.set('ja_blast',o.blast); }
+  if(o.blast&&typeof o.blast==='object'&&!Array.isArray(o.blast)){ const b={}; for(const k in o.blast){ const v=+o.blast[k]; if(Number.isFinite(v)&&v>=0) b[k]=Math.floor(v); } LS.set('ja_blast',b); }   // 逐欄驗證，壞值不進來（Codex 4-4）
   LS.set('ja_synct',o.t||0);
   return true;
 }
@@ -1986,7 +1993,7 @@ function renderHome(){
   $('#heroHeadline').textContent = curEmpty ? '這個篩選沒有字' : (due===0 ? (relearnSoon.length?`${relearnSoon.length} 張等一下再練`:'今天的份都做完了 ✓') : (newN>0 ? `今天學 ${due} 張` : `今天複習 ${due} 張`));
   $('#heroSub').textContent = curEmpty ? '換個級別或主題看看' : (due===0&&relearnSoon.length ? '按了「沒想起來」的字，一分鐘後會再出現' : `新字 ${newN}・複習 ${reviewN}`);
   if(HOME_T){ clearTimeout(HOME_T); HOME_T=null; }
-  if(due===0&&relearnSoon.length){ const nxt=Math.min(...relearnSoon.map(c=>srsGet(c.id).due)); HOME_T=setTimeout(()=>{ HOME_T=null; if(!$('#home').classList.contains('hidden')) renderHome(); }, Math.max(500,nxt-_n0+300)); }   // 到期時自己刷新（Codex 3-6）
+  if(due===0&&relearnSoon.length){ const nxt=Math.min(...relearnSoon.map(c=>srsGet(c.id).due)); HOME_T=setTimeout(function tick(){ HOME_T=null; if($('#home').classList.contains('hidden')) return; if(document.querySelector('.pw:not(.hidden)')){ HOME_T=setTimeout(tick,2000); return; } renderHome(); }, Math.max(500,nxt-_n0+300)); }   // 到期時自己刷新；查字彈窗開著就等它關（Codex 3-6／4-5）
   /* 進度條只看「這個範圍」：分子＝今天在這個範圍做過的卡（不是全 App 的作答次數，不然換牌組會顯示 99%），
      分母再加上一分鐘內要重練的卡（按「沒想起來」的那張），否則那一分鐘會先 100% 再倒退（Codex 3） */
   { const ids=new Set(STAT.todayIds||[]); const _n=now();
@@ -2509,7 +2516,8 @@ function undo(){
   if(lastSnap.blastAttempt){ blastUndo(lastSnap.blastAttempt); }
   const s=lastSnap;
   if(s.prev) srsSet(s.id, s.prev, s.fam); else srsDrop(s.id, s.fam);
-  STAT.today=s.today; if(s.todayIds) STAT.todayIds=s.todayIds.slice(); STAT.streak=s.streak; STAT.lastDay=s.lastDay; LS.set('ja_stat',STAT);
+  STAT.today=s.today; if(s.todayIds) STAT.todayIds=s.todayIds.slice(); STAT.streak=s.streak; STAT.lastDay=s.lastDay; STAT.todayDate=s.day; LS.set('ja_stat',STAT);
+  rollDay();   // 跨午夜後 undo：先退回評分那天的統計，再讓換日邏輯決定今天是不是新的一天（Codex 4-1）
   DAYS[s.day]=s.days; if(!DAYS[s.day]) delete DAYS[s.day]; LS.set('ja_days',DAYS);
   NEWD[s.day]=s.newd; if(!NEWD[s.day]) delete NEWD[s.day]; LS.set('ja_newd',NEWD);
   QUEUE.length=0; QUEUE.push(...s.queue);   // 還原整個佇列，不是只截長度
