@@ -139,7 +139,13 @@ body{font-family:-apple-system,'Segoe UI','Noto Sans TC',sans-serif;background:v
 
 /* study */
 .study{flex:1;display:flex;flex-direction:column;padding:0 18px 22px}
-.pbar{height:8px;background:var(--line);border-radius:99px;overflow:hidden;margin:6px 0 16px}
+.pbar{height:8px;background:var(--line);border-radius:99px;overflow:hidden;margin:6px 0 10px}
+/* 學習頁的企鵝：小一號、一行字，不能把卡片往下擠太多 */
+.smascot{display:flex;align-items:center;gap:8px;margin:0 2px 6px;min-height:44px}
+.smascot .pg{flex:none;width:44px;height:44px}
+.sbubble{flex:1;min-width:0;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:6px 11px;font-size:13.5px;line-height:1.35;color:var(--navy);position:relative;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sbubble::before{content:'';position:absolute;left:-7px;top:50%;margin-top:-6px;border:6px solid transparent;border-right-color:#fff;border-left:0}
+.sbubble small{color:var(--muted);font-size:12px;margin-left:6px}
 .pbar i{display:block;height:100%;background:linear-gradient(90deg,var(--orange),var(--gold));border-radius:99px;transition:width .25s}
 .cardstage{flex:1;display:flex;align-items:center;justify-content:center;min-height:330px}
 .card{width:100%;background:var(--card);border-radius:24px;box-shadow:var(--shadow);padding:30px 24px;
@@ -627,6 +633,7 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
       <span class="chip" id="qProgress">0 / 0</span>
     </div>
     <div class="pbar"><i id="pbarFill" style="width:0%"></i></div>
+    <div class="smascot" id="studyMascot" aria-hidden="true"><div class="pg" id="sMascotArt"></div><div class="sbubble" id="sMascotSay"></div></div>
     <div style="text-align:center;margin-top:6px"><span class="chip hidden" id="retryChip" style="color:var(--red)"></span></div>
     <div class="cardstage">
       <div class="swipehint" id="shLeft"><span class="sh-emo">🙈</span>沒想起來</div>
@@ -2045,6 +2052,7 @@ function showCard(){
   const {card}=QUEUE[qi];
   $('#qProgress').textContent=`${Math.min(qi+1,sessionTotal)} / ${sessionTotal}`;
   $('#pbarFill').style.width=(sessionTotal?Math.round(qi/sessionTotal*100):0)+'%';
+  studyMascotFront();
   const rc=$('#retryChip');
   if(RETRY.length>0){rc.textContent='待再練 '+RETRY.length;rc.classList.remove('hidden');}else{rc.classList.add('hidden');}
   $('#undoBtn').classList.toggle('hidden',!lastSnap);
@@ -2138,6 +2146,7 @@ function reveal(){ if(revealed)return; CARD_REVEAL_T=Date.now(); if(!RATE_META.r
 function revealBack(autoRate,extraTop){
   revealed=true;
   const {card}=QUEUE[qi];
+  if(Date.now()>=SM_HOLD) studyMascot('idle', (card.ex||card.ex2)?'back':'backNoEx');
   const exs=[['e',card.ex,card.exzh,card.exr],['e2',card.ex2,card.exzh2,card.exr2],['e3',card.ex3,card.exzh3,card.exr3],['e4',card.ex4,card.exzh4,card.exr4],['e5',card.ex5,card.exzh5,card.exr5]].filter(x=>x[1]);
   const showEx = exs.length>0;
   const exItem=([k,nl,zh,rb])=>`<div class="ex ex3row"><div class="extext"><span class="exnl" data-pl="${esc(nl).replace(/"/g,'&quot;')}" data-rb="${esc(rb||'').replace(/"/g,'&quot;')}">${exBody(nl,rb)}</span><span class="exzh">${esc(zh||'')}</span></div>${exOpsRow(card,k)}</div>`;
@@ -2496,6 +2505,7 @@ function rate(r){
       firstAnswerCorrect:m.firstOk, firstAnswerMs:(m.shownT&&m.firstT)?m.firstT-m.shownT:null, revealMs:(m.shownT&&m.revealT)?m.revealT-m.shownT:null,
       ratingLatencyMs:m.shownT?now-m.shownT:null, judge:m.judge||'self', hintShown:!!m.hint, revealedBeforeAnswer:(m.firstT&&m.revealT)?m.revealT<m.firstT:null}); }
   schedule(card.id,r);
+  if(!BLAST_ACTIVE) studyMascotReact(r);
   if(isNewCard) bumpNewToday(1);
   STAT.today=(STAT.today||0)+1;
   { if(!Array.isArray(STAT.todayIds)) STAT.todayIds=[]; if(STAT.todayIds.indexOf(card.id)<0){ STAT.todayIds.push(card.id); if(STAT.todayIds.length>3000) STAT.todayIds.splice(0,500); } }
@@ -2919,6 +2929,36 @@ function pengu(state='idle', size=96){
   ${zz}
   </g>
   </svg>`;
+}
+/* 學習頁的企鵝：翻面前「想」、翻面後提醒念例句、評分後短暫反應再回到下一張的「想」。
+   反應期間（SM_HOLD）下一張的台詞會等它演完，否則評分一按就被蓋掉，什麼都看不到。 */
+const SM_LINES={
+  front:[['この字、知ってる？','認得嗎？'],['読めるかな？','唸得出來嗎？'],['じっくり見て','慢慢看'],['思い出してみて','想想看']],
+  listen:[['耳をすませて','仔細聽'],['もう一回聞いてもいいよ','可以再聽一次']],
+  type:[['書いてみて','打打看'],['ゆっくりでいいよ','慢慢來']],
+  back:[['例文も読んでみて','例句也念念看'],['声に出してみて','出聲念一次'],['どうだった？','怎麼樣？']],
+  backNoEx:[['どうだった？','怎麼樣？'],['正直に選んでね','照實選就好']],
+  r0:[['だいじょうぶ、あとでもう一回','沒關係，等一下再來'],['忘れるのもふつう','忘記很正常']],
+  r3:[['おしい！','差一點！'],['もうすぐ覚える','快記住了']],
+  r1:[['いいね！','很好！'],['その調子','就是這樣']],
+  r2:[['すごい！','厲害！'],['もう覚えたね','已經記住了']],
+};
+let SM_HOLD=0, SM_T=null;
+function studyMascot(state, kind){
+  const a=$('#sMascotArt'), b=$('#sMascotSay'); if(!a||!b) return;
+  const pick=SM_LINES[kind]||SM_LINES.front; const [jp,zh]=pick[Math.floor(Math.random()*pick.length)];
+  if(a.dataset.face!==state){ a.innerHTML=pengu(state,44); a.dataset.face=state; }
+  b.innerHTML=`${esc(jp)}<small>${esc(zh)}</small>`;
+}
+function studyMascotFront(){
+  if(SM_T){ clearTimeout(SM_T); SM_T=null; }
+  const go=()=>{ SM_T=null; const k = CFG.dir==='listen'?'listen' : (CFG.dir==='type'||CFG.dir==='sentence')?'type' : 'front'; studyMascot('think',k); };
+  const wait=SM_HOLD-Date.now(); if(wait>0) SM_T=setTimeout(go,wait); else go();
+}
+function studyMascotReact(r){
+  if(SM_T){ clearTimeout(SM_T); SM_T=null; }
+  SM_HOLD=Date.now()+950;
+  studyMascot(r===0?'oops':r===3?'think':'happy', 'r'+r);
 }
 /* 戳企鵝：跳一下＋拍翅膀＋回一句話。原本點了沒反應，有吉祥物卻不能互動很可惜。 */
 const POKE_LINES=[['なに？','什麼事？'],['くすぐったい！','好癢！'],['いっしょにがんばろう','一起加油'],['ぺんぎんだよ','我是企鵝喔'],['きょうもえらい！','今天也很棒！'],['ひとつずつ、ね','一個一個來'],['さむくないよ','我不冷喔']];
