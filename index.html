@@ -406,6 +406,35 @@ mark.btarget{background:#fff0c2;color:inherit;border-radius:4px;padding:0 2px}
 .pw .price{text-align:center;font-size:13px;color:var(--muted);margin-bottom:10px}
 .pw .restore{display:block;margin:12px auto 0;border:none;background:none;color:var(--blue);font-weight:700;font-size:14px;cursor:pointer}
 .pw .closex{display:block;margin:6px auto 0;border:none;background:none;color:var(--muted);font-size:13px;cursor:pointer}
+
+/* ── 五十音表：把 92 張假名卡從「一疊卡」變成「一張在填的地圖」 ── */
+.kmtabs{display:flex;gap:6px;margin:6px 0 12px}
+.kmtabs button{flex:1;border:1.5px solid var(--line);background:#fff;border-radius:11px;padding:10px 6px;font-size:14px;font-weight:700;color:var(--muted);cursor:pointer}
+.kmtabs button.on{background:var(--navy);border-color:var(--navy);color:#fff}
+.kmtabs button.kmtog{flex:0 0 auto;padding:10px 12px;font-size:12px}
+.kmtabs button.kmtog.on{background:#eef4fb;border-color:#d5e3f3;color:var(--blue)}
+.kmgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}
+.kmc{aspect-ratio:1;background:#fff;border:1.5px solid var(--line);border-radius:13px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;cursor:pointer;-webkit-user-select:none;user-select:none}
+.kmc:active{transform:scale(.95)}
+.kmc .g{font-size:26px;font-weight:700;color:var(--navy);line-height:1.1}
+.kmc .r{font-size:10px;color:var(--muted);margin-top:2px;letter-spacing:.02em}
+.kmc .m{position:absolute;top:5px;right:7px;font-size:10px;font-weight:800;color:var(--muted)}
+.kmc.gap{visibility:hidden}
+.kmc.lock{opacity:.32}
+.kmc.m1{background:#fdf0ec;border-color:#f3cfc6}
+.kmc.m2{background:#f7d5cd;border-color:#e6a496}
+.kmc.m3{background:var(--orange);border-color:var(--orange)} .kmc.m3 .g,.kmc.m3 .r,.kmc.m3 .m{color:#fff}
+.kmlegend{display:flex;flex-wrap:wrap;gap:8px 14px;margin:14px 2px 6px;font-size:12px;color:var(--muted)}
+.kmlegend i{display:inline-block;width:12px;height:12px;border-radius:4px;vertical-align:-2px;margin-right:4px;border:1px solid var(--line)}
+.kmrule{font-size:12.5px;color:var(--muted);margin:2px 2px 14px;line-height:1.6}
+.kpbig{font-size:88px;font-weight:700;color:var(--navy);line-height:1.1;text-align:center}
+.kprom{text-align:center;color:var(--muted);font-size:16px;margin-top:2px}
+.kpwords{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.kpw{border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;text-align:left;background:#fff;cursor:pointer}
+.kpw b{display:block;font-size:19px;color:var(--navy)}
+.kpw small{display:block;color:var(--muted);font-size:12px}
+.kpw .z{font-size:13px;color:var(--text);margin-top:2px}
+.kpnone{color:var(--muted);font-size:13px;text-align:center;margin-top:12px;line-height:1.6}
 .hero{position:relative;overflow:hidden}.hero>*{position:relative;z-index:1}.hero::after{content:'';position:absolute;inset:0;z-index:0;opacity:.5;pointer-events:none;background-image:radial-gradient(circle at 0 100%,transparent 30%,rgba(255,255,255,.06) 31%,rgba(255,255,255,.06) 40%,transparent 41%),radial-gradient(circle at 100% 100%,transparent 30%,rgba(255,255,255,.06) 31%,rgba(255,255,255,.06) 40%,transparent 41%),radial-gradient(circle at 50% 100%,transparent 30%,rgba(255,255,255,.06) 31%,rgba(255,255,255,.06) 40%,transparent 41%);background-size:44px 22px;background-position:0 0,0 0,22px 0}</style>
 </head>
 <script>
@@ -451,6 +480,7 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
       <div class="scopeline" id="homeTip" style="opacity:.75"></div>
 
       <button class="bigbtn" id="startBtn">開始學習</button>
+      <button class="subtoggle hidden" id="kanaMapBtn">看五十音表</button>
       <!-- 每日新字配額用完時才出現：上限是為了不讓複習量爆炸，但不該變成死路 -->
       <button class="bigbtn ghost hidden" id="moreNewBtn" style="font-size:15px;margin-top:8px"></button>
 
@@ -535,6 +565,26 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
   </div>
 
   <!-- BROWSE / SEARCH (dictionary mode) -->
+  <div id="kanamap" class="browsewrap hidden">
+    <div class="top" style="padding:14px 0">
+      <button class="backlink" id="kanaBack" style="padding:0">‹ 返回</button>
+      <span class="spacer"></span>
+      <span class="chip" id="kmProg"></span>
+    </div>
+    <h2 style="color:var(--navy);font-size:20px;margin:0 2px 2px">五十音表</h2>
+    <div class="kmtabs"><button data-s="h" id="kmTabH">平假名</button><button data-s="k" id="kmTabK">片假名</button><button class="kmtog" id="kmRomaji">ローマ字</button></div>
+    <div class="kmgrid" id="kmGrid"></div>
+    <div class="kmlegend"><span><i style="background:#fff"></i>還沒學</span><span><i style="background:#fdf0ec"></i>剛認識</span><span><i style="background:#f7d5cd"></i>會了</span><span><i style="background:var(--orange)"></i>熟了</span></div>
+    <div class="kmrule">一行五個字全部「會了」，下一行才會亮起來。點任何一格看讀音、聽發音、看你已經讀得出來的真字。</div>
+    <button class="bigbtn" id="kmStudy">練這一行</button>
+  </div>
+  <div id="kanapop" class="pw hidden">
+    <div class="sheet">
+      <div class="grip"></div>
+      <div id="kpBody"></div>
+      <button class="closex" id="kpClose">關閉</button>
+    </div>
+  </div>
   <div id="browse" class="browsewrap hidden">
     <div class="top" style="padding:14px 0">
       <button class="backlink" id="browseBack" style="padding:0">‹ 返回</button>
@@ -936,6 +986,9 @@ function levelCards(){
 function deckCards(){
   let cards=levelCards();
   if(CFG.theme) cards=cards.filter(c=>c.theme===CFG.theme);
+  /* 五十音牌組只出「已解鎖的行」（目前練的那一套：平假名或片假名）。
+     寫在這裡而不是 buildQueue，首頁計數、積壓保護、widget 才會跟佇列說同一件事。 */
+  if(CFG.deck==='KANA'){ const u=kanaUnlockedSet(CFG.kanaScript||'h'); cards=cards.filter(c=>u.has(c.nl)); }
   return cards;
 }
 /* B2：永遠可用的「清除主題」出口——不管目前主題 chip 是不是空的、是不是根本沒出現在
@@ -1798,6 +1851,7 @@ function renderHome(){
       : FREE_GRAM_LEVELS.includes(CFG.deck) ? '翻面後點「文法解說・免費」，每句例句都有老師講解'
       : IS_NATIVE ? `N3 以上的例句解說每天可免費試看 ${TASTE_PER_DAY} 句` : 'N3 以上的例句解說請在 App 內解鎖';
   }
+  { const b=$('#kanaMapBtn'); if(b) b.classList.toggle('hidden', CFG.deck!=='KANA'); }
   $('#startBtn').disabled=due===0;
   $('#startBtn').textContent = curEmpty ? '這個篩選沒有字' : (due===0 ? '這牌組複習完了 ✓' : `開始學習：${deckLabel()}`);
   /* 今天的新字配額用完、但這個牌組還有沒學過的字 → 給一個明確的加碼出口。
@@ -2657,6 +2711,78 @@ function renderBrowse(){
       ? `<div class="bempty">還沒有常忘的字<br><span style="font-size:13px">多次忘記的字會自動放在這裡</span></div>`
       : `<div class="bempty">找不到「${esc(raw)}」<br><span style="font-size:13px">換個關鍵字試試${CFG.deck!=='all'&&BROWSE_SCOPED?'，或點右上角切換成「全部」範圍':''}</span></div>`;
 }
+/* ═══════════ 五十音表 ═══════════
+   熟練度（看辨識家族的排程）：0 還沒學、1 剛認識、2 會了（isLearned）、3 熟了（間隔 ≥14 天）。
+   解鎖規則：第一行永遠開；其後每一行要前面所有格子都 ≥2 才亮。學習者永遠只面對五個字。 */
+const KANA_ROWS_H=[['あ','い','う','え','お'],['か','き','く','け','こ'],['さ','し','す','せ','そ'],['た','ち','つ','て','と'],['な','に','ぬ','ね','の'],['は','ひ','ふ','へ','ほ'],['ま','み','む','め','も'],['や',null,'ゆ',null,'よ'],['ら','り','る','れ','ろ'],['わ',null,null,null,'を'],['ん',null,null,null,null]];
+const KANA_ROWS_K=KANA_ROWS_H.map(r=>r.map(g=>g?String.fromCharCode(g.charCodeAt(0)+0x60):null));
+const KANA_ROMA={あ:'a',い:'i',う:'u',え:'e',お:'o',か:'ka',き:'ki',く:'ku',け:'ke',こ:'ko',さ:'sa',し:'shi',す:'su',せ:'se',そ:'so',た:'ta',ち:'chi',つ:'tsu',て:'te',と:'to',な:'na',に:'ni',ぬ:'nu',ね:'ne',の:'no',は:'ha',ひ:'hi',ふ:'fu',へ:'he',ほ:'ho',ま:'ma',み:'mi',む:'mu',め:'me',も:'mo',や:'ya',ゆ:'yu',よ:'yo',ら:'ra',り:'ri',る:'ru',れ:'re',ろ:'ro',わ:'wa',を:'wo',ん:'n'};
+function kanaRows(script){ return script==='k'?KANA_ROWS_K:KANA_ROWS_H; }
+function kanaRoma(g){ return KANA_ROMA[toHira(g)]||''; }
+let KANA_BY_GLYPH=null;
+function kanaCard(g){ if(!KANA_BY_GLYPH){ KANA_BY_GLYPH={}; VOCAB.forEach(c=>{ if(levelOf(c)==='KANA') KANA_BY_GLYPH[c.nl]=c; }); } return KANA_BY_GLYPH[g]; }
+function kanaMastery(g){ const c=kanaCard(g); if(!c) return 0; const s=srsGet(c.id,'recog'); if(!s) return 0;
+  if((s.interval||0)>=14) return 3; if((s.reps||0)>=2&&(s.interval||0)>=4) return 2; return 1; }
+function kanaUnlockedRows(script){ const rows=kanaRows(script); let n=1;
+  for(let i=0;i<rows.length-1;i++){ if(rows[i].every(g=>!g||kanaMastery(g)>=2)) n=i+2; else break; } return n; }
+function kanaUnlockedSet(script){ const rows=kanaRows(script), n=kanaUnlockedRows(script), set=new Set();
+  for(let i=0;i<n;i++) rows[i].forEach(g=>{ if(g) set.add(g); }); return set; }
+/* 只用「已解鎖假名」就讀得出來的真字。ー 一律允許；小字っゃゅょ在對應大字解鎖後允許。 */
+function kanaReadable(script, unlocked, must, limit){
+  const isK=script==='k'; const small={'っ':'つ','ゃ':'や','ゅ':'ゆ','ょ':'よ','ッ':'ツ','ャ':'ヤ','ュ':'ユ','ョ':'ヨ'};
+  const okCh=ch=>ch==='ー'||unlocked.has(ch)||(small[ch]&&unlocked.has(small[ch]));
+  const LV={N5:0,N4:1,N3:2,N2:3,N1:4}; const out=[];
+  for(const c of VOCAB){ if(c.my||levelOf(c)==='KANA') continue;
+    let r; if(isK){ if(!/^[ァ-ヶー]+$/.test(c.nl||'')) continue; r=c.nl; } else { if(/^[ァ-ヶー]+$/.test(c.nl||'')) continue; r=kanaOfCard(c); if(!r) continue; }
+    if(r.length<2||r.length>6) continue;
+    if(must&&!r.includes(must)) continue;
+    if(![...r].every(okCh)) continue;
+    out.push({c,r,lv:LV[levelOf(c)]??9});
+  }
+  out.sort((a,b)=>a.lv-b.lv||a.r.length-b.r.length);
+  // 同一個讀音（会う／合う）只留一個，不然四格裡出現兩個 あう
+  const seen=new Set(); return out.filter(w=>!seen.has(w.r)&&seen.add(w.r)).slice(0,limit);
+}
+let KM_ROMAJI=true;
+function renderKanaMap(){
+  const sc=CFG.kanaScript||'h', rows=kanaRows(sc), unl=kanaUnlockedRows(sc);
+  $('#kmTabH').classList.toggle('on',sc==='h'); $('#kmTabK').classList.toggle('on',sc==='k'); $('#kmRomaji').classList.toggle('on',KM_ROMAJI);
+  let learned=0,total=0;
+  $('#kmGrid').innerHTML=rows.map((row,ri)=>row.map(g=>{
+    if(!g) return '<div class="kmc gap"></div>';
+    const m=kanaMastery(g); total++; if(m>=2) learned++;
+    const lock=ri>=unl;
+    return `<div class="kmc m${m}${lock?' lock':''}" data-g="${g}" role="button" tabindex="0"><span class="g">${g}</span>${KM_ROMAJI?`<span class="r">${kanaRoma(g)}</span>`:''}${m?`<span class="m">${m}</span>`:''}</div>`;
+  }).join('')).join('');
+  $('#kmProg').textContent=`${learned} / ${total} 會了`;
+  const cur=rows[unl-1].filter(Boolean).join('');
+  $('#kmStudy').textContent=learned>=total?'全部會了，複習一輪':`練這一行：${cur}`;
+  document.querySelectorAll('#kmGrid .kmc[data-g]').forEach(el=>{ el.onclick=()=>showKanaDetail(el.dataset.g); el.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();el.click();} }; });
+}
+function openKanaMap(){
+  if(BLAST_ACTIVE) blastAbort('leave'); stopAllAudio();
+  ['home','study','done','sentences','browse'].forEach(id=>$('#'+id).classList.add('hidden'));
+  $('#kanamap').classList.remove('hidden'); renderKanaMap(); window.scrollTo(0,0);
+}
+function showKanaDetail(g){
+  const c=kanaCard(g); if(!c) return; const sc=CFG.kanaScript||'h';
+  const unl=kanaUnlockedSet(sc); unl.add(g);
+  const words=kanaReadable(sc,unl,g,4);
+  const m=kanaMastery(g), mtext=['還沒學過','剛認識，再練幾次','會了','熟了'][m];
+  $('#kpBody').innerHTML=`<div class="kpbig">${g}</div><div class="kprom">${kanaRoma(g)}　·　${mtext}</div>
+    <div style="text-align:center;margin-top:12px">${HAS_AUDIO?`<button class="exmore" style="width:auto;padding:9px 18px" onclick="play('w',${c.id})">${I_SPK} 聽發音</button>`:''}</div>
+    ${words.length?`<div class="kpwords">${words.map(w=>`<div class="kpw" onclick="play('w',${w.c.id})"><b>${esc(w.r)}</b><small>${esc(w.c.nl!==w.r?w.c.nl:'')}</small><div class="z">${esc(zhBase(w.c.zh))}</div></div>`).join('')}</div>
+      <div class="kpnone">這些字你現在每一個假名都認得，讀得出來</div>`
+      :`<div class="kpnone">再多解鎖幾行，就會出現你讀得出來的真字</div>`}`;
+  $('#kanapop').classList.remove('hidden');
+}
+$('#kpClose').onclick=()=>$('#kanapop').classList.add('hidden');
+$('#kanaBack').onclick=()=>{ $('#kanamap').classList.add('hidden'); renderHome(); };
+$('#kmTabH').onclick=()=>{ CFG.kanaScript='h'; LS.set('ja_cfg',CFG); renderKanaMap(); };
+$('#kmTabK').onclick=()=>{ CFG.kanaScript='k'; LS.set('ja_cfg',CFG); renderKanaMap(); };
+$('#kmRomaji').onclick=()=>{ KM_ROMAJI=!KM_ROMAJI; renderKanaMap(); };
+$('#kmStudy').onclick=()=>{ CFG.deck='KANA'; CFG.theme=''; LS.set('ja_cfg',CFG); $('#kanamap').classList.add('hidden'); startStudy(); };
+$('#kanaMapBtn').onclick=openKanaMap;
 function openBrowse(){
   if(BLAST_ACTIVE) blastAbort('leave');
   stopAllAudio();
