@@ -1097,7 +1097,8 @@ function deckCards(){
   if(CFG.theme) cards=cards.filter(c=>c.theme===CFG.theme);
   /* 五十音牌組只出「已解鎖的行」（目前練的那一套：平假名或片假名）。
      寫在這裡而不是 buildQueue，首頁計數、積壓保護、widget 才會跟佇列說同一件事。 */
-  if(CFG.deck==='KANA'){ const u=kanaUnlockedSet(CFG.kanaScript||'h');
+  if(CFG.deck==='KANA'){ const u=kanaUnlockedSet(CFG.kanaScript||'h'); const isK=(CFG.kanaScript||'h')==='k';
+    cards=cards.filter(c=>/^[ァ-ヶー]+$/.test(c.nl||'')===isK);   // 先限定目前這一套字體，再談解鎖（Codex 3-7：切片假名時平假名的到期卡混進來）
     /* 解鎖只管「新卡從哪一行發」。已經有排程的假名（任何家族）一律留在範圍內——
        否則前一行答錯讓解鎖退回，後面已到期的複習卡會整排被藏掉。 */
     cards=cards.filter(c=>u.has(c.nl) || ['recog','prod','listen'].some(f=>!!kanaOwnSrs(c.id,f))); }
@@ -1121,7 +1122,7 @@ let QUEUE=[],qi=0,sessionTotal=0,lastSnap=null,exSeen=new Set();
    buildQueue()（真正開新的一輪學習，不含待再練子輪）時重置，完成畫面要用
    「本輪不重複卡數」與「本輪作答總次數」，不是全日累計。 */
 let RETRY=[], sessionCardCount=0, sessionAnswers=0, deferredRetry=false;
-function buildQueue(){BLAST_SESSION++;BLAST_ROUND=0;if(BLAST_ACTIVE)blastAbort();let cards=deckCards();if(CFG.dir==='listen')cards=cards.filter(c=>!c.my);const due=cards.filter(c=>{const s=srsGet(c.id);return s&&s.due<=now();});const fresh=cards.filter(c=>!srsGet(c.id)).slice(0,newLeftToday());let q=[...due,...fresh];for(let i=q.length-1;i>0;i--){const j=Math.floor((Math.sin(i*99.13+q.length)*0.5+0.5)*(i+1));[q[i],q[j]]=[q[j],q[i]];}QUEUE=q.map(c=>({card:c}));qi=0;sessionTotal=QUEUE.length;RETRY=[];sessionCardCount=QUEUE.length;sessionAnswers=0;deferredRetry=false;}
+function buildQueue(){lastSnap=null;BLAST_SESSION++;BLAST_ROUND=0;if(BLAST_ACTIVE)blastAbort();let cards=deckCards();if(CFG.dir==='listen')cards=cards.filter(c=>!c.my);const due=cards.filter(c=>{const s=srsGet(c.id);return s&&s.due<=now();});const fresh=cards.filter(c=>!srsGet(c.id)).slice(0,newLeftToday());let q=[...due,...fresh];for(let i=q.length-1;i>0;i--){const j=Math.floor((Math.sin(i*99.13+q.length)*0.5+0.5)*(i+1));[q[i],q[j]]=[q[j],q[i]];}QUEUE=q.map(c=>({card:c}));qi=0;sessionTotal=QUEUE.length;RETRY=[];sessionCardCount=QUEUE.length;sessionAnswers=0;deferredRetry=false;}
 /* 三鍵預覽用的「下次幾天後」，公式跟 schedule() 一致（不寫 due、不存） */
 function previewInterval(s,rating){
   const reps=s.reps||0, ease=s.ease||2.5, iv=s.interval||0;
@@ -1318,7 +1319,7 @@ const DAY0=86400000;
 function packState(){
   const srs={};
   for(const k in SRS){ const s=SRS[k]||{};
-    srs[k]=[s.interval|0, Math.round((s.ease||2.5)*10), s.reps|0, s.lapses|0, Math.round((s.due||0)/DAY0)]; if(s.lf) srs[k].push(s.lf|0); }   // 第 6 格：忘掉前的間隔（Codex：少了這格，還原後熟卡又從 1 天重來）
+    srs[k]=[s.interval|0, Math.round((s.ease||2.5)*100), s.reps|0, s.lapses|0, Math.round((s.due||0)/60000)]; if(s.lf) srs[k].push(s.lf|0); }   // v4：ease ×100、到期以分鐘存——原本以天四捨五入，「一分鐘後重練」還原後變隔天早上（Codex 3-3）   // 第 6 格：忘掉前的間隔（Codex：少了這格，還原後熟卡又從 1 天重來）
   /* v2 起把熱力圖、自建卡、每日配額也納進來。v1 只備 SRS 系列，所以換手機後
      熱力圖整片歸零、自己打字建的生字卡直接消失——那是使用者自己輸入的內容，
      掉了沒有任何地方救得回來。這幾份都很小（DAYS 一年約 7KB），不影響 1MB 上限。 */
@@ -1327,16 +1328,17 @@ function packState(){
   const msrs={};
   for(const f in MSRS){ const src=MSRS[f]||{}, dst={};
     for(const k in src){ const x=src[k]||{};
-      dst[k]=[x.interval|0, Math.round((x.ease||2.5)*10), x.reps|0, x.lapses|0, Math.round((x.due||0)/DAY0)]; if(x.lf) dst[k].push(x.lf|0); }
+      dst[k]=[x.interval|0, Math.round((x.ease||2.5)*100), x.reps|0, x.lapses|0, Math.round((x.due||0)/60000)]; if(x.lf) dst[k].push(x.lf|0); }
     if(Object.keys(dst).length) msrs[f]=dst; }
-  return {v:3,t:Date.now(),srs,star:[...STAR],exstar:[...EXSTAR],stat:STAT,cfg:CFG,
-          days:DAYS,my:MYCARDS,newd:NEWD,newx:NEWX,msrs};
+  return {v:4,t:Date.now(),srs,star:[...STAR],exstar:[...EXSTAR],stat:STAT,cfg:CFG,
+          days:DAYS,my:MYCARDS,newd:NEWD,newx:NEWX,msrs,recent:RECENT,blast:LS.get('ja_blast',{})};
 }
 function unpackState(o){
-  if(!o||!(o.v===1||o.v===2||o.v===3)||!o.srs) return false;   // v1/v2 的舊備份仍要讀得回來
+  if(!o||!(o.v>=1&&o.v<=4)||!o.srs) return false;   // v1–v3 的舊備份仍要讀得回來
+  const MU=o.v>=4?60000:DAY0, EU=o.v>=4?100:10;   // v4 起：分鐘、ease ×100
   const srs={};
   for(const k in o.srs){ const a=o.srs[k]; if(!Array.isArray(a)||a.length<5) continue;
-    srs[k]={interval:a[0],ease:a[1]/10,reps:a[2],lapses:a[3],due:a[4]*DAY0}; if(a[5]) srs[k].lf=a[5]; }
+    srs[k]={interval:a[0],ease:a[1]/EU,reps:a[2],lapses:a[3],due:a[4]*MU}; if(a[5]) srs[k].lf=a[5]; }
   SRS=srs;                       LS.set('ja_srs',SRS);
   STAR=new Set(o.star||[]);      LS.set('ja_star',[...STAR]);
   EXSTAR=new Set(o.exstar||[]);  LS.set('ja_exstar',[...EXSTAR]);
@@ -1361,10 +1363,12 @@ function unpackState(o){
     for(const f in o.msrs){ const src=o.msrs[f]||{}, dst={};
       for(const k in src){ const a=src[k];
         if(!Array.isArray(a)||a.length<5) continue;
-        dst[k]={interval:a[0],ease:a[1]/10,reps:a[2],lapses:a[3],due:a[4]*DAY0}; if(a[5]) dst[k].lf=a[5]; }
+        dst[k]={interval:a[0],ease:a[1]/EU,reps:a[2],lapses:a[3],due:a[4]*MU}; if(a[5]) dst[k].lf=a[5]; }
       m[f]=dst; }
     MSRS=m; LS.set('ja_msrs',MSRS);
   }
+  if(Array.isArray(o.recent)){ RECENT=o.recent.slice(0,8); LS.set('ja_recent',RECENT); }   // v4：最近學會的字與爆記累計也跟著走（Codex 3-4）
+  if(o.blast&&typeof o.blast==='object'){ LS.set('ja_blast',o.blast); }
   LS.set('ja_synct',o.t||0);
   return true;
 }
@@ -1430,6 +1434,7 @@ window.cloudRestore=function(json){
     const myBefore=JSON.stringify(MYCARDS);
     if(unpackState(o)){
       setSyncSt('ok');
+      if(Object.keys(SRS||{}).length||Object.values(MSRS||{}).some(m=>Object.keys(m||{}).length)){ LS.set('ja_onboarded',1); $('#onboard').classList.add('hidden'); }   // 換機還原後不該再蓋新手引導，finishOb 會把每日目標改回 5（Codex 3-5）
       /* 自建卡是在啟動時的 IIFE 裡併進 VOCAB／WORDMAP 的，中途換掉 MYCARDS
          不會進字庫。跟手動匯入一樣重載一次最單純，也不會有半套狀態。 */
       if(JSON.stringify(MYCARDS)!==myBefore){ location.reload(); return true; }
@@ -1695,6 +1700,7 @@ function collapseSec(title, content){
     +`<button class="gexpandbtn" onclick="const d=document.getElementById('${id}');d.classList.toggle('clamp');this.textContent=d.classList.contains('clamp')?'展開 ▾':'收合 ▴'">展開 ▾</button>`;
 }
 async function showGram(cardId, exKey){
+  if(AUTOPLAY_T){ clearTimeout(AUTOPLAY_T); AUTOPLAY_T=null; }   // 開解說時卡背的例句自動播放不該再響
   const key=cardId+':'+exKey;
   const paidLevel=!isPro() && !gramFree(cardId);
   // 先作廢舊請求、清掉在途預留（同一句在途的交給新請求接手），**再**判斷新請求的額度——
@@ -1862,7 +1868,9 @@ $('#restoreBtn').onclick=()=>{ if(!nativeIAP('restore')){ alert('請在 iOS App 
 
 /* ---------- HOME ---------- */
 let themeExpanded=false;   // 主題「查看全部」展開狀態，不必持久化，重開只回到收合預設
+let HOME_T=null;
 function renderHome(){
+  rollDay();   // App 不重載跨日，今日數字要在這裡換日（Codex 3-2）
   if(BLAST_ACTIVE) blastAbort('leave');
   stopAllAudio();
   $('#home').classList.remove('hidden');$('#study').classList.add('hidden');$('#done').classList.add('hidden');
@@ -1974,8 +1982,11 @@ function renderHome(){
   // 不能都顯示「今天的份都做完了 ✓」——那句話暗示「你學過了」，但使用者可能根本
   // 一張都還沒看過，只是篩選條件互斥。
   const curEmpty = curCards.length===0;
-  $('#heroHeadline').textContent = curEmpty ? '這個篩選沒有字' : (due===0 ? '今天的份都做完了 ✓' : (newN>0 ? `今天學 ${due} 張` : `今天複習 ${due} 張`));
-  $('#heroSub').textContent = curEmpty ? '換個級別或主題看看' : `新字 ${newN}・複習 ${reviewN}`;
+  const _n0=now(); const relearnSoon=curCards.filter(c=>{ const x=srsGet(c.id); return x&&x.due>_n0&&x.due<=_n0+60000; });
+  $('#heroHeadline').textContent = curEmpty ? '這個篩選沒有字' : (due===0 ? (relearnSoon.length?`${relearnSoon.length} 張等一下再練`:'今天的份都做完了 ✓') : (newN>0 ? `今天學 ${due} 張` : `今天複習 ${due} 張`));
+  $('#heroSub').textContent = curEmpty ? '換個級別或主題看看' : (due===0&&relearnSoon.length ? '按了「沒想起來」的字，一分鐘後會再出現' : `新字 ${newN}・複習 ${reviewN}`);
+  if(HOME_T){ clearTimeout(HOME_T); HOME_T=null; }
+  if(due===0&&relearnSoon.length){ const nxt=Math.min(...relearnSoon.map(c=>srsGet(c.id).due)); HOME_T=setTimeout(()=>{ HOME_T=null; if(!$('#home').classList.contains('hidden')) renderHome(); }, Math.max(500,nxt-_n0+300)); }   // 到期時自己刷新（Codex 3-6）
   /* 進度條只看「這個範圍」：分子＝今天在這個範圍做過的卡（不是全 App 的作答次數，不然換牌組會顯示 99%），
      分母再加上一分鐘內要重練的卡（按「沒想起來」的那張），否則那一分鐘會先 100% 再倒退（Codex 3） */
   { const ids=new Set(STAT.todayIds||[]); const _n=now();
@@ -1993,7 +2004,7 @@ function renderHome(){
   { const b=$('#kanaMapBtn'); if(b) b.classList.toggle('hidden', CFG.deck!=='KANA'); }
   renderMascot();
   $('#startBtn').disabled=due===0;
-  $('#startBtn').textContent = curEmpty ? '這個篩選沒有字' : (due===0 ? '這牌組複習完了 ✓' : `開始學習：${deckLabel()}`);
+  $('#startBtn').textContent = curEmpty ? '這個篩選沒有字' : (due===0 ? (relearnSoon.length?'等一下再練':'這牌組複習完了 ✓') : `開始學習：${deckLabel()}`);
   /* 今天的新字配額用完、但這個牌組還有沒學過的字 → 給一個明確的加碼出口。
      預設擋住是為了控制未來的複習量；硬鎖死只會讓人改去別的 App。 */
   const canMore=newLeftToday()===0 && newCount()>0;
@@ -2012,7 +2023,7 @@ function renderHome(){
 
 /* ---------- STUDY ---------- */
 let revealed=false;
-function startStudy(){buildQueue();exSeen=new Set();if(!QUEUE.length)return renderHome();$('#home').classList.add('hidden');$('#study').classList.remove('hidden');$('#done').classList.add('hidden');showCard();}
+function startStudy(){rollDay();buildQueue();exSeen=new Set();if(!QUEUE.length)return renderHome();$('#home').classList.add('hidden');$('#study').classList.remove('hidden');$('#done').classList.add('hidden');showCard();}
 function skipCard(){qi++;showCard();}
 function showCard(){
   if(BLAST_ACTIVE) blastAbort('leave');
@@ -2394,7 +2405,7 @@ function blastSelfReveal(){
     <div class="bhint">剛剛有想起來嗎？</div><div class="bbtns"><button onclick="blastSelf(false)">沒有</button><button class="go" onclick="blastSelf(true)">有想起來</button></div></div>`;
   bAfter(20000,()=>blastSelf(false));
 }
-function blastSelf(ok){ if(!BLAST_ACTIVE||BLAST_RESULT) return; blastStat(ok?'okSelf':'wrongSelf'); blastFinish(ok?'ok':'wrong'); }
+function blastSelf(ok){ if(!BLAST_ACTIVE||BLAST_RESULT) return; const k=ok?'okSelf':'wrongSelf'; blastStat(k); BLAST_RESULTS[BLAST_ATTEMPT].self=k; blastFinish(ok?'ok':'wrong'); }
 function blastFinish(result,answer){
   if(!BLAST_ACTIVE||BLAST_RESULT) return;
   BLAST_RESULT=result; bClear(); const c=BLAST_CARD, kana=kanaOfCard(c);
@@ -2422,7 +2433,7 @@ function feedbackTeach(){ learnStart('text'); const t=$('#bteach'); if(t) t.inne
 /* undo：依 attempt 回滾這次的統計（冪等，跨下一張也行）、記撤銷事件 */
 function blastUndo(attempt){
   const r=BLAST_RESULTS[attempt]; if(!r||r.undone) return; r.undone=true;
-  if(r.started){ blastStat(r.result||'quit',-1); blastStat('undone'); }
+  if(r.started){ blastStat(r.result||'quit',-1); if(r.self) blastStat(r.self,-1); blastStat('undone'); }   // 自評的計數一起回滾（Codex 3-12）
   const a=LS.get('ja_events',[]); const src=a.slice().reverse().find(e=>e.attempt===attempt)||{};
   evPush({v:1,ev:'blast_undo',t:Date.now(),attempt,card:src.card,fam:src.fam,mode:src.mode,result:r.result||(r.started?'quit':'cancel')});
 }
@@ -2445,12 +2456,13 @@ function blastClose(why){
 }
 $('#bquit').onclick=()=>blastClose('x');
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&BLAST_ACTIVE){ e.stopImmediatePropagation(); blastClose('escape'); } },true);
-document.addEventListener('visibilitychange',()=>{ if(document.hidden&&BLAST_ACTIVE) blastClose('background'); });
+document.addEventListener('visibilitychange',()=>{ if(document.hidden&&BLAST_ACTIVE) blastClose('background'); if(!document.hidden){ const before=STAT.todayDate; rollDay(); if(STAT.todayDate!==before && !$('#home').classList.contains('hidden')) renderHome(); } });
 window.addEventListener('pagehide',()=>{ if(BLAST_ACTIVE) blastAbort('pagehide'); stopAllAudio(); });
 
 function rate(r){
   if(BLAST_ACTIVE && !BLAST_RATE_CALL) return;   // 爆記中只有 blastRate() 這一條路能評分
   if(qi>=QUEUE.length)return;   // B1：輪末待再練面板開著時可能仍被觸發（遮罩/Esc/數字快捷鍵），QUEUE[qi] 這時是 undefined
+  rollDay();
   const {card}=QUEUE[qi];
   const t=todayStr();
   const isNewCard=!srsGet(card.id);   // 這張是今天第一次學到的新字嗎
@@ -2587,7 +2599,8 @@ function initSwipe(){
       el.style.opacity='0';
       clear();
       const r=dir<0?0:1;
-      setTimeout(()=>rate(r),180);              // 等飛出去一半再換卡，才看得到動作
+      { const at=qi, cid=QUEUE[qi]&&QUEUE[qi].card.id;   // 180ms 內按結束／換佇列，舊回呼不能再評分（Codex 3-1）
+        setTimeout(()=>{ if($('#study').classList.contains('hidden')||qi!==at||!QUEUE[qi]||QUEUE[qi].card.id!==cid) return; rate(r); },180); }
     }else{
       el.classList.add('settle'); el.style.transform=''; el.style.opacity='';
       clear();
@@ -2672,7 +2685,7 @@ $('#reviewBtn').onclick=()=>openExternal(STORE_REVIEW_URL);
 $('#moreFeedback').onclick=()=>openExternal(feedbackMail());
 /* 評分與評論、回報問題只在原生 App 有意義（網頁版沒有 App Store、mailto 也開不了外部信箱），
    兩顆一起用同一個 IS_NATIVE 閘門顯示——這也是「更多」sheet 網頁 3 項／原生 5 項的來源。 */
-if(IS_NATIVE){ $('#reviewBtn').classList.remove('hidden'); $('#moreFeedback').classList.remove('hidden'); $('#tasteHint').classList.remove('hidden'); }
+if(IS_NATIVE){ $('#reviewBtn').classList.remove('hidden'); $('#moreFeedback').classList.remove('hidden'); $('#tasteHint').classList.remove('hidden'); } else { const m=$('#exMailBtn'); if(m) m.classList.add('hidden'); }
 /* ①：每日新字目標下拉——固定 5/10/15/20/30；使用者舊值若不在這個清單裡（手動改過、
    或是舊版留下的其他數字）仍要能顯示原值，不能悄悄跳掉變成別的數字。 */
 function renderNewPerDaySelect(){
@@ -3004,12 +3017,12 @@ function renderKanaMap(){
 function openKanaMap(){
   if(BLAST_ACTIVE) blastAbort('leave'); stopAllAudio();
   ['home','study','done','sentences','browse'].forEach(id=>$('#'+id).classList.add('hidden'));
-  if(DRILL) drillClose();
+  drillClose(true);   // 結果頁停在那裡的話 DRILL 已是 null，不能只靠 if(DRILL)（Codex 3-9）
   $('#kanamap').classList.remove('hidden'); renderKanaMap(); window.scrollTo(0,0);
 }
 function showKanaDetail(g){
   const c=kanaCard(g); if(!c) return; const sc=CFG.kanaScript||'h';
-  const unl=kanaUnlockedSet(sc); unl.add(g);
+  const unl=kanaUnlockedSet(sc);   // 鎖住的字可以先看筆順，但例詞只用真的解鎖的假名（Codex 3-13）
   const words=kanaReadable(sc,unl,g,4);
   const m=kanaMastery(g), mtext=['還沒學過','剛認識，再練幾次','會了','熟了'][m];
   $('#kpBody').innerHTML=`<div class="kpbig">${g}</div><div class="kprom">${kanaRoma(g)}　·　${mtext}</div>
@@ -3047,7 +3060,7 @@ function strokePadInit(){
 }
 function strokeClear(){ const cv=$('#ksCanvas'); if(cv&&KS_CTX){ KS_CTX.clearRect(0,0,cv.width,cv.height); } }
 $('#kpClose').onclick=()=>$('#kanapop').classList.add('hidden');
-$('#kanaBack').onclick=()=>{ if(DRILL) drillClose(); $('#kanamap').classList.add('hidden'); renderHome(); };
+$('#kanaBack').onclick=()=>{ drillClose(true); $('#kanamap').classList.add('hidden'); renderHome(); };
 $('#kmTabH').onclick=()=>{ CFG.kanaScript='h'; LS.set('ja_cfg',CFG); renderKanaMap(); };
 $('#kmTabK').onclick=()=>{ CFG.kanaScript='k'; LS.set('ja_cfg',CFG); renderKanaMap(); };
 $('#kmRomaji').onclick=()=>{ KM_ROMAJI=!KM_ROMAJI; renderKanaMap(); };
@@ -3056,7 +3069,7 @@ $('#kmRomaji').onclick=()=>{ KM_ROMAJI=!KM_ROMAJI; renderKanaMap(); };
    四選一，錯的選項優先從同一行拿（最容易搞混的），不夠再從其他已解鎖的拿。
    每個假名在一場裡只有**第一次**作答計入排程（對＝想了一下、錯＝沒想起來），
    不然連刷十場同一個字就能衝到「熟了」。答題也算進今日張數與熱力圖。 */
-let DRILL=null;
+let DRILL=null, DRILL_T=null;
 function drillPool(){ const sc=CFG.kanaScript||'h'; return [...kanaUnlockedSet(sc)]; }
 function drillStart(){
   const pool=drillPool(); if(pool.length<2) return;
@@ -3082,27 +3095,31 @@ function drillQ(){
     <div class="dopts">${q.opts.map((o,k)=>`<button class="dopt ${q.dir==='k2r'?'rom':''}" data-k="${k}" onclick="drillAnswer(${k})">${q.dir==='k2r'?kanaRoma(o):o}</button>`).join('')}</div>
     <button class="subtoggle" style="margin-top:14px" onclick="drillEnd(true)">先結束</button>`;
   d.lock=false;
-  if(q.dir==='k2r' && HAS_AUDIO){ const c=kanaCard(q.g); if(c) setTimeout(()=>play('w',c.id),150); }
+  if(DRILL_T){ clearTimeout(DRILL_T); DRILL_T=null; }
+  if(q.dir==='k2r' && HAS_AUDIO){ const c=kanaCard(q.g); const at=d.i; if(c) DRILL_T=setTimeout(()=>{ DRILL_T=null; if(DRILL!==d||d.i!==at||$('#kanamap').classList.contains('hidden')) return; play('w',c.id); },150); }   // 離開後不能突然出聲（Codex 3-10）
 }
 function drillAnswer(k){
   const d=DRILL; if(!d||d.lock) return; d.lock=true; const q=d.qs[d.i]; const ok=q.opts[k]===q.g;
   document.querySelectorAll('#drillBox .dopt').forEach((b,i)=>{ const isAns=q.opts[i]===q.g; b.classList.add(i===k?(ok?'ok':'no'):(isAns?'ok':'dim')); b.disabled=true; });
   if(ok) d.ok++; else d.miss.push(q.g);
-  if(!d.seen.has(q.g)){ d.seen.add(q.g); const c=kanaCard(q.g); if(c){ schedule(c.id, ok?1:0); const t=todayStr();
+  d.answered=(d.answered||0)+1;
+  if(!d.seen.has(q.g)){ d.seen.add(q.g); const c=kanaCard(q.g); if(c){ rollDay(); const isNew=!srsGet(c.id); schedule(c.id, ok?1:0); const t=todayStr();
+      if(isNew) bumpNewToday(1);   // Drill 學到的新假名也吃當日新字配額、也算今日進度（Codex 3-8）
+      if(!Array.isArray(STAT.todayIds)) STAT.todayIds=[]; if(STAT.todayIds.indexOf(c.id)<0) STAT.todayIds.push(c.id);
       STAT.today=(STAT.today||0)+1; if(STAT.lastDay!==t){STAT.streak=(STAT.streak||0)+1;STAT.lastDay=t;} DAYS[t]=(DAYS[t]||0)+1; LS.set('ja_days',DAYS); LS.set('ja_stat',STAT); } }
   if(q.dir==='r2k' && HAS_AUDIO){ const c=kanaCard(q.g); if(c) play('w',c.id); }
-  setTimeout(()=>{ if(!DRILL) return; d.i++; if(d.i>=d.qs.length) drillEnd(false); else drillQ(); }, ok?550:1100);
+  setTimeout(()=>{ if(DRILL!==d) return; d.i++; if(d.i>=d.qs.length) drillEnd(false); else drillQ(); }, ok?550:1100);
 }
 function drillEnd(early){
-  const d=DRILL; if(!d) return; const secs=Math.round((Date.now()-d.t0)/1000), n=early?d.i:d.qs.length;
+  const d=DRILL; if(!d) return; const secs=Math.round((Date.now()-d.t0)/1000), n=early?(d.answered||0):d.qs.length;   // 提早結束用實際答題數，不然會出現 1／0（Codex 3-15）
   const miss=[...new Set(d.miss)];
   $('#drillBox').innerHTML=`<div class="dres"><div class="score">${d.ok} / ${n}</div><div class="sub">${secs} 秒${early?'・提早結束':''}</div>
     ${miss.length?`<div class="sub" style="margin-top:12px">這幾個再看一眼</div><div class="dmiss">${miss.map(g=>`<span onclick="showKanaDetail('${g}')">${g}</span>`).join('')}</div>`:'<div class="sub" style="margin-top:12px">全對。表上的顏色會慢慢變深。</div>'}
     <div class="ksbtns" style="margin-top:16px"><button onclick="drillStart()">再來 10 題</button><button onclick="drillClose()">回五十音表</button></div></div>`;
   DRILL=null;
 }
-function drillClose(){ DRILL=null; $('#drillBox').classList.add('hidden'); $('#kmGrid').classList.remove('hidden'); $('#kmStudy').classList.remove('hidden'); $('#kmDrill').classList.remove('hidden');
-  document.querySelector('#kanamap .kmlegend').classList.remove('hidden'); document.querySelector('#kanamap .kmrule').classList.remove('hidden'); renderKanaMap(); }
+function drillClose(silent){ DRILL=null; if(DRILL_T){ clearTimeout(DRILL_T); DRILL_T=null; } stopAllAudio(); $('#drillBox').classList.add('hidden'); $('#kmGrid').classList.remove('hidden'); $('#kmStudy').classList.remove('hidden'); $('#kmDrill').classList.remove('hidden');
+  document.querySelector('#kanamap .kmlegend').classList.remove('hidden'); document.querySelector('#kanamap .kmrule').classList.remove('hidden'); if(!silent) renderKanaMap(); }
 $('#kmDrill').onclick=drillStart;
 $('#kmStudy').onclick=()=>{ CFG.deck='KANA'; CFG.theme=''; LS.set('ja_cfg',CFG); $('#kanamap').classList.add('hidden'); startStudy(); };
 $('#kanaMapBtn').onclick=openKanaMap;
@@ -3177,6 +3194,7 @@ $('#undoBtn').onclick=undo;
 document.addEventListener('keydown',e=>{
   if($('#study').classList.contains('hidden'))return;
   if(!$('#retryPanel').classList.contains('hidden'))return;   // B1：待再練面板開著時，輪末的卡已經不在 QUEUE 範圍內，不該再吃數字快捷鍵
+  if(document.querySelector('.pw:not(.hidden)'))return;   // 文法／查字／匯出等任何 sheet 開著：數字鍵不能替底下的卡評分（Codex 3-11）
   if(BLAST_ACTIVE)return;   // 爆記遮罩開著：數字鍵不能繞過遮罩內的評分（會把 BLAST_RATING 清掉卻不啟動序列）
   if((CFG.dir==='type'||CFG.dir==='sentence')&&!revealed)return;
   if(!revealed&&(e.code==='Space'||e.code==='Enter')){e.preventDefault();reveal();}
