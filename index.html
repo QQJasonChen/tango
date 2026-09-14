@@ -435,6 +435,16 @@ mark.btarget{background:#fff0c2;color:inherit;border-radius:4px;padding:0 2px}
 .kpw small{display:block;color:var(--muted);font-size:12px}
 .kpw .z{font-size:13px;color:var(--text);margin-top:2px}
 .kpnone{color:var(--muted);font-size:13px;text-align:center;margin-top:12px;line-height:1.6}
+
+/* ── 吉祥物：企鵝（純 SVG，任何尺寸清晰）。首頁一列：小企鵝＋一句話＋最近學會的字 ── */
+.mascot{display:flex;gap:12px;align-items:flex-end;margin:2px 0 8px}
+.mascot .pg{flex:none}
+.mbubble{flex:1;background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:10px 14px;font-size:15px;line-height:1.5;color:var(--navy);position:relative}
+.mbubble::before{content:'';position:absolute;left:-8px;bottom:14px;border:7px solid transparent;border-right-color:#fff;border-left:0}
+.mbubble small{display:block;color:var(--muted);font-size:12px;margin-top:3px}
+.mrecent{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 12px}
+.mrecent .rc{background:#fff;border:1px solid var(--line);border-radius:99px;padding:4px 11px;font-size:13px;color:var(--navy);cursor:pointer}
+.mrecent .lbl{font-size:11px;color:var(--muted);margin-left:2px}
 .hero{position:relative;overflow:hidden}.hero>*{position:relative;z-index:1}.hero::after{content:'';position:absolute;inset:0;z-index:0;opacity:.5;pointer-events:none;background-image:radial-gradient(circle at 0 100%,transparent 30%,rgba(255,255,255,.06) 31%,rgba(255,255,255,.06) 40%,transparent 41%),radial-gradient(circle at 100% 100%,transparent 30%,rgba(255,255,255,.06) 31%,rgba(255,255,255,.06) 40%,transparent 41%),radial-gradient(circle at 50% 100%,transparent 30%,rgba(255,255,255,.06) 31%,rgba(255,255,255,.06) 40%,transparent 41%);background-size:44px 22px;background-position:0 0,0 0,22px 0}</style>
 </head>
 <script>
@@ -467,6 +477,8 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
       <button class="chip" id="moreBtn" aria-label="更多">⋯</button>
     </div>
     <div class="home">
+      <div class="mascot"><div class="pg" id="mascotArt"></div><div class="mbubble" id="mascotSay"></div></div>
+      <div class="mrecent hidden" id="mascotRecent"></div>
       <div class="searchbar" id="homeSearch">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7a8699" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
         <input id="homeSearchIn" readonly placeholder="搜尋單字（中文或日文）">
@@ -1852,6 +1864,7 @@ function renderHome(){
       : IS_NATIVE ? `N3 以上的例句解說每天可免費試看 ${TASTE_PER_DAY} 句` : 'N3 以上的例句解說請在 App 內解鎖';
   }
   { const b=$('#kanaMapBtn'); if(b) b.classList.toggle('hidden', CFG.deck!=='KANA'); }
+  renderMascot();
   $('#startBtn').disabled=due===0;
   $('#startBtn').textContent = curEmpty ? '這個篩選沒有字' : (due===0 ? '這牌組複習完了 ✓' : `開始學習：${deckLabel()}`);
   /* 今天的新字配額用完、但這個牌組還有沒學過的字 → 給一個明確的加碼出口。
@@ -2314,6 +2327,7 @@ function rate(r){
   const {card}=QUEUE[qi];
   const t=todayStr();
   const isNewCard=!srsGet(card.id);   // 這張是今天第一次學到的新字嗎
+  if(r>=1 && levelOf(card)!=='KANA') recentPush(card.id);   // 想起來的字才算「學會」，假名不進這個清單
   /* 快照要能「完整」還原，不能只記 queue 長度。
      舊版記 queueLen，但「再背一次」是把卡片 splice 到 qi+4 的**中間**，
      復原時 QUEUE.length=舊長度 砍掉的是**尾端那張**——實測會弄丟一張卡、
@@ -2528,7 +2542,7 @@ $('#moreBtn').onclick=()=>{ renderNewPerDaySelect(); $('#moreSheet').classList.r
 $('#moreClose').onclick=()=>$('#moreSheet').classList.add('hidden');
 document.querySelectorAll('#moreSheet .util button, #moreSheet .reviewlink').forEach(b=>b.addEventListener('click',()=>$('#moreSheet').classList.add('hidden')));
 function finishStudy(){$('#study').classList.add('hidden');$('#done').classList.remove('hidden');
-  $('#doneArt').innerHTML=ico('m_done',128);
+  $('#doneArt').innerHTML=pengu('happy',132);
   /* 標題：待再練清空（或這一輪本來就沒有）→「今天的份，做完了」；
      使用者選了「先完成，稍後再練」、還留著待再練的卡 →「這一輪完成了」。
      數字用「本輪」不重複卡數＋本輪作答總次數，不是全日累計——全日統計仍照舊存進
@@ -2710,6 +2724,53 @@ function renderBrowse(){
     : leechEmpty
       ? `<div class="bempty">還沒有常忘的字<br><span style="font-size:13px">多次忘記的字會自動放在這裡</span></div>`
       : `<div class="bempty">找不到「${esc(raw)}」<br><span style="font-size:13px">換個關鍵字試試${CFG.deck!=='all'&&BROWSE_SCOPED?'，或點右上角切換成「全部」範圍':''}</span></div>`;
+}
+/* ═══════════ 吉祥物：企鵝 ═══════════
+   扁平、安靜、幾何：深藍蛋身、一塊米色肚、兩個小點眼、小金嘴、一條朱色圍巾。
+   沒有腮紅、沒有反光——跟 App 的插畫 icon 是同一種圖形語言。表情只靠眼睛的形狀。 */
+function pengu(state='idle', size=96){
+  const B='#16273f', F='#f7efe2', SC='#d0463b', BK='#e8b04b', INK='#1c2331';
+  const eyes={
+    idle:  `<circle cx="42" cy="42" r="3.2" fill="${INK}"/><circle cx="58" cy="42" r="3.2" fill="${INK}"/>`,
+    happy: `<path d="M38 43 Q42 38 46 43" stroke="${INK}" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M54 43 Q58 38 62 43" stroke="${INK}" stroke-width="3" fill="none" stroke-linecap="round"/>`,
+    think: `<circle cx="42" cy="42" r="3.2" fill="${INK}"/><circle cx="58" cy="41" r="3.2" fill="${INK}"/><path d="M54 34 q4 -2 8 0" stroke="${INK}" stroke-width="2.2" fill="none" stroke-linecap="round"/>`,
+    sleepy:`<path d="M38 42 h8" stroke="${INK}" stroke-width="3" stroke-linecap="round"/><path d="M54 42 h8" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>`,
+    oops:  `<circle cx="42" cy="42" r="4.2" fill="none" stroke="${INK}" stroke-width="2.4"/><circle cx="58" cy="42" r="4.2" fill="none" stroke="${INK}" stroke-width="2.4"/>`,
+  }[state]||'';
+  const beak = state==='oops' ? `<circle cx="50" cy="50" r="2.6" fill="${BK}"/>` : `<path d="M47 48 L53 48 L50 52.5 Z" fill="${BK}"/>`;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <path d="M50 8 C27 8 15 29 15 55 C15 80 29 92 50 92 C71 92 85 80 85 55 C85 29 73 8 50 8 Z" fill="${B}"/>
+  <path d="M24 52 q-8 12 -3 24 q5 -5 7 -18 Z" fill="${B}"/><path d="M76 52 q8 12 3 24 q-5 -5 -7 -18 Z" fill="${B}"/>
+  <path d="M50 26 C36 26 29 40 29 58 C29 76 38 86 50 86 C62 86 71 76 71 58 C71 40 64 26 50 26 Z" fill="${F}"/>
+  ${eyes}${beak}
+  <path d="M33 58 q17 6 34 0 l1 5 q-18 7 -36 0 Z" fill="${SC}"/>
+  <path d="M39 92 q4 -3 8 -1 M53 91 q4 -2 8 1" stroke="${BK}" stroke-width="3.6" fill="none" stroke-linecap="round"/>
+  </svg>`;
+}
+/* 最近學會的字：評分「想了一下」以上就進來，最多留 8 個，首頁顯示 4 個 */
+let RECENT = LS.get('ja_recent', []);
+function recentPush(id){ RECENT=[id,...RECENT.filter(x=>x!==id)].slice(0,8); LS.set('ja_recent',RECENT); }
+/* 問候依時段與狀態換，不是每次都同一句。每句都附中文，順便多看一次日文。 */
+function mascotLine(){
+  const h=new Date().getHours(), due=dueNow(), st=STAT.streak||0;
+  const gap = STAT.lastDay ? Math.round((new Date(todayStr())-new Date(STAT.lastDay))/DAY) : 0;
+  if(h>=23||h<5) return ['まだ起きてる？一枚だけでもいいよ','還醒著？背一張也好','sleepy'];
+  if(gap>=3) return ['おかえり！待ってたよ','歡迎回來！等你很久了','happy'];
+  if(due===0) return ['今日の分、おわり。おつかれさま','今天的份做完了，辛苦了','happy'];
+  if(due>=60) return ['今日はちょっと多いね。ゆっくりいこう','今天有點多，慢慢來','think'];
+  if(st>=7) return [`${st}日連続！すごい`, `連續 ${st} 天！很厲害`,'happy'];
+  if(h<11) return ['おはよう！今日も一緒にがんばろう','早安！今天也一起加油','happy'];
+  if(h<18) return ['こんにちは！ちょっとだけやろう','午安！做一點點就好','idle'];
+  return ['こんばんは！今日の分、いこう','晚安！來做今天的份','idle'];
+}
+function renderMascot(){
+  const a=$('#mascotArt'), b=$('#mascotSay'); if(!a||!b) return;
+  const [jp,zh,face]=mascotLine();
+  a.innerHTML=pengu(face,76); b.innerHTML=`${esc(jp)}<small>${esc(zh)}</small>`;
+  const r=$('#mascotRecent'); if(!r) return;
+  const cards=RECENT.map(cardById).filter(Boolean).slice(0,4);
+  r.classList.toggle('hidden',cards.length===0);
+  r.innerHTML=cards.map(c=>`<span class="rc" onclick="showWordPop(${c.id})">${esc(c.nl)}</span>`).join('')+(cards.length?'<span class="lbl">最近學會的</span>':'');
 }
 /* ═══════════ 五十音表 ═══════════
    熟練度（看辨識家族的排程）：0 還沒學、1 剛認識、2 會了（isLearned）、3 熟了（間隔 ≥14 天）。
