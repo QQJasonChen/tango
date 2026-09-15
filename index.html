@@ -603,6 +603,7 @@ mark.btarget{background:#fff0c2;color:inherit;border-radius:4px;padding:0 2px}
 .sbtns{display:flex;gap:8px;margin-top:8px} .sbtns button{flex:1;min-height:44px;border-radius:12px;font-size:13.5px;font-weight:800;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--navy)}
 .sbtns button.main{background:var(--orange);border-color:var(--orange);color:#fff}
 .hero{display:none}
+.mexam{display:block;margin-top:6px;color:var(--orange);font-weight:700}
 .mbar{height:4px;border-radius:99px;background:var(--line);margin-top:8px;overflow:hidden}.mbar i{display:block;height:100%;width:0;border-radius:99px;background:var(--orange);transition:width .5s}
 .hero{position:relative;overflow:hidden}.hero>*{position:relative;z-index:1}.hero::after{content:'';position:absolute;inset:0;z-index:0;opacity:.5;pointer-events:none;background-image:radial-gradient(circle at 0 100%,transparent 30%,rgba(255,255,255,.06) 31%,rgba(255,255,255,.06) 40%,transparent 41%),radial-gradient(circle at 100% 100%,transparent 30%,rgba(255,255,255,.06) 31%,rgba(255,255,255,.06) 40%,transparent 41%),radial-gradient(circle at 50% 100%,transparent 30%,rgba(255,255,255,.06) 31%,rgba(255,255,255,.06) 40%,transparent 41%);background-size:44px 22px;background-position:0 0,0 0,22px 0}</style>
 </head>
@@ -956,6 +957,11 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
         <label for="remindOn" style="font-size:13.5px;font-weight:700;color:var(--navy);display:flex;align-items:center;gap:8px"><input type="checkbox" id="remindOn" style="width:18px;height:18px;accent-color:var(--orange)">每日提醒</label>
         <select id="remindTime" style="border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:14px;font-weight:700;color:var(--navy);background:#fff"></select>
       </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;padding:12px 15px;background:var(--surface);border:1px solid var(--line);border-radius:13px">
+        <span style="font-size:13.5px;font-weight:700;color:var(--navy)">考試目標</span>
+        <span style="display:flex;gap:6px;align-items:center"><select id="examLv" style="border:1px solid var(--line);border-radius:10px;padding:8px 8px;font-size:14px;font-weight:700;color:var(--navy);background:#fff"><option value="">不設</option><option>N5</option><option>N4</option><option>N3</option><option>N2</option><option>N1</option></select><input type="date" id="examDate" style="border:1px solid var(--line);border-radius:10px;padding:7px 8px;font-size:14px;font-weight:700;color:var(--navy);background:#fff;max-width:150px"></span>
+      </div>
+      <div id="examNote" style="font-size:12px;color:var(--muted);margin:4px 4px 0;line-height:1.5"></div>
       <div class="hidden" id="remindNote" style="font-size:12px;color:var(--muted);margin:4px 4px 0;line-height:1.5"></div>
       <button class="reviewlink hidden" id="reviewBtn" style="margin-top:14px">在 App Store 評論 ›</button>
       <button class="reviewlink hidden" id="moreFeedback">✉️ 回報問題 ›</button>
@@ -1010,6 +1016,7 @@ window.onProChange = ()=>{
     const pending=(typeof PENDING_GRAM!=='undefined')?PENDING_GRAM:null;
     closePaywall();
     if(pending && typeof showGram==='function') showGram(pending.cardId, pending.exKey);
+    else if(typeof GRAM_CUR!=='undefined' && GRAM_CUR && !$('#grampop').classList.contains('hidden')) showGram(GRAM_CUR.cardId, GRAM_CUR.exKey);   // 解說開著時買完：推廣框要消失（Codex 7-7）
   } else { if(IS_NATIVE) localStorage.removeItem('ja_pro');   /* 原生說沒買就清乾淨，否則舊的繞過會永遠留著 */
          applyEntitlement(); }
   if(typeof paywallCta==='function') paywallCta();
@@ -1040,6 +1047,10 @@ function normalizeCfg(c){
 CFG=normalizeCfg(CFG); LS.set('ja_cfg',CFG);
 let STAT = LS.get('ja_stat', {streak:0, lastDay:null, today:0, todayDate:null});
 let DAYS = LS.get('ja_days', {});   // {'YYYY-MM-DD': 當天複習張數} — 熱力圖用
+/* 每日彙總（保留 120 天）：作答數、首答正確數、各模式作答數。事件只留 600 筆會偏，摘要與週報要看這份。 */
+let DAILY = LS.get('ja_daily', {});
+function dailyBump(mode, firstOk){ const t=todayStr(); const d=DAILY[t]||(DAILY[t]={a:0,ok:0,m:{}}); d.a++; if(firstOk===true) d.ok++; d.m[mode]=(d.m[mode]||0)+1;
+  const ks=Object.keys(DAILY).sort(); while(ks.length>120){ delete DAILY[ks.shift()]; } LS.set('ja_daily',DAILY); }
 /* {'YYYY-MM-DD': 當天「第一次學到」的新字張數} — 每日新字配額用。
    原本 newPerDay 只在 buildQueue 當「每一輪」的上限：使用者設 10 字/天，
    背完一輪再按一次「開始學習」就又拿到 10 個全新的字，可以無限領。
@@ -1233,6 +1244,7 @@ function schedule(id,rating){
     else s.interval=Math.max(1,Math.round(s.interval*(s.ease||2.5)*(rating===2?1.3:1)));
     s.ease=Math.min(3,(s.ease||2.5)+(rating===2?0.15:0)); s.reps=(s.reps||0)+1; s.due=now()+s.interval*DAY;
   }
+  s.last=now();   // 最後複習時間：之後校準遺忘曲線用（備份不帶，遺失只影響分析）
   srsSet(id,s);cloudSave();}
 
 /* ---------- audio ---------- */
@@ -1270,9 +1282,10 @@ function realAudioFail(e){ const n=e&&e.name; return n!=='AbortError' && n!=='No
 /* 假名卡的例詞是字庫裡的真字（あ→会う）。它自己的 e_ 音檔是舊例詞（雨）配的；例詞換了音檔沒重做，
    所以一律改播那個真字的單字音檔——讀音用 exzh 括號裡的假名對，避免「家」對到 うち。 */
 function kanaExAudioId(c){
-  if(!c||!c.ex) return null; const m=(c.exzh||'').match(/（([ぁ-ゖー]+)）/); const rd=m?m[1]:null;
-  let hit=null; for(const x of VOCAB){ if(x.nl===c.ex && !x.my){ if(!rd||kanaOfCard(x)===rd){ hit=x; break; } if(!hit) hit=x; } }
-  return hit?hit.id:null;
+  if(!c||!c.ex) return null; const m=(c.exzh||'').match(/（([ぁ-ゖァ-ヶー]+)）/); const rd=m?toHira(m[1]):null;
+  const cands=VOCAB.filter(x=>x.nl===c.ex && !x.my); if(!cands.length) return null;
+  if(rd){ const hit=cands.find(x=>toHira(kanaOfCard(x))===rd); return hit?hit.id:null; }   // 指定讀音對不到→null，寧可播原檔也不要播 うち（Codex 7-3）
+  const rds=new Set(cands.map(x=>toHira(kanaOfCard(x)))); return rds.size===1 ? cands[0].id : null;
 }
 function audioSrc(kind,id){
   if(kind!=='w'){ const c=cardById(id); if(c&&levelOf(c)==='KANA'){ const t=kanaExAudioId(c); if(t!=null){ kind='w'; id=t; } } }
@@ -1800,7 +1813,9 @@ function collapseSec(title, content){
   return `<div class="gsec">${esc(title)}</div><div class="gcollapse clamp" id="${id}">${esc(content).replace(/\n/g,'<br>')}</div>`
     +`<button class="gexpandbtn" onclick="const d=document.getElementById('${id}');d.classList.toggle('clamp');this.textContent=d.classList.contains('clamp')?'展開 ▾':'收合 ▴'">展開 ▾</button>`;
 }
+let GRAM_CUR=null;
 async function showGram(cardId, exKey){
+  GRAM_CUR={cardId,exKey};
   if(AUTOPLAY_T){ clearTimeout(AUTOPLAY_T); AUTOPLAY_T=null; }   // 開解說時卡背的例句自動播放不該再響
   const key=cardId+':'+exKey;
   const paidLevel=!isPro() && !gramFree(cardId);
@@ -1844,7 +1859,7 @@ async function showGram(cardId, exKey){
   else { tasteLine.classList.add('hidden'); }
   const taste=nowPaid
     ? `<div class="gtaste"><span>想每句都看？解鎖後 N3–N1 每句都有解說</span><button onclick="$('#grampop').classList.add('hidden');openPaywall({cardId:${cardId},exKey:'${exKey}'})">解鎖</button></div>`
-    : (!isPro() ? `<div class="gtaste gfree"><span>N5・N4 的解說免費。想 N3 到 N1 每一句都有？一次解鎖${window.WJ_PRICE?'（'+esc(window.WJ_PRICE)+'）':''}，也是支持一個人開發</span><button onclick="$('#grampop').classList.add('hidden');openPaywall('gram_free_bottom')">解鎖・支持</button></div>` : '');
+    : (!isPro() ? `<div class="gtaste gfree"><span>N5・N4 的解說免費。想 N3 到 N1 每一句都有？一次解鎖${window.WJ_PRICE?'（'+esc(window.WJ_PRICE)+'）':''}，也是支持一個人開發</span><button onclick="$('#grampop').classList.add('hidden');openPaywall({cardId:${cardId},exKey:'${exKey}',source:'gram_free_bottom'})">解鎖・支持</button></div>` : '');
   GRAM_WORDS=d.words||[];
   const srcCard=VOCAB.find(c=>c.id==cardId);
   const zhKey=exKey==='ex'?'exzh':'exzh'+exKey.slice(2);
@@ -2131,7 +2146,8 @@ function renderHome(){
 
 /* ---------- STUDY ---------- */
 let revealed=false;
-function startStudy(){rollDay();buildQueue();exSeen=new Set();if(!QUEUE.length)return renderHome();$('#home').classList.add('hidden');$('#study').classList.remove('hidden');$('#done').classList.add('hidden');showCard();}
+let SESSION_ID=null;
+function startStudy(){rollDay();buildQueue();exSeen=new Set();if(!QUEUE.length)return renderHome();SESSION_ID=Date.now().toString(36);evPush({v:1,ev:'session_start',t:Date.now(),sid:SESSION_ID,deck:CFG.deck,mode:CFG.dir,n:QUEUE.length});$('#home').classList.add('hidden');$('#study').classList.remove('hidden');$('#done').classList.add('hidden');showCard();}
 function skipCard(){qi++;showCard();}
 function showCard(){
   if(BLAST_ACTIVE) blastAbort('leave');
@@ -2602,6 +2618,7 @@ function rate(r){
   if(!BLAST_ACTIVE) studyMascotReact(r);
   if(isNewCard) bumpNewToday(1);
   STAT.today=(STAT.today||0)+1;
+  dailyBump(CFG.dir, RATE_META.firstOk===true || (RATE_META.firstOk==null && r>=1));
   { if(!Array.isArray(STAT.todayIds)) STAT.todayIds=[]; if(STAT.todayIds.indexOf(card.id)<0){ STAT.todayIds.push(card.id); if(STAT.todayIds.length>3000) STAT.todayIds.splice(0,500); } }
   if(STAT.lastDay!==t){STAT.streak=(STAT.streak||0)+1;STAT.lastDay=t;}
   DAYS[t]=(DAYS[t]||0)+1; LS.set('ja_days',DAYS);
@@ -2647,7 +2664,7 @@ function showRetryPanel(){
    答對（rate!==0）就直接移出（不重新排進佇列）；答錯（rate===0）在 rate() 裡
    會再被推回 RETRY，子輪結束時 RETRY 若還有東西就再問一次，直到清空或按「先完成」。 */
 function startRetryRound(){
-  $('#retryPanel').classList.add('hidden');
+  $('#retryPanel').classList.add('hidden'); SM_MILE={};
   BLAST_ROUND++;   // 待再練子輪＝新的一次出現，不能被首輪的爆記鎖住
   QUEUE=RETRY.map(card=>({card})); RETRY=[]; qi=0; sessionTotal=QUEUE.length; lastSnap=null;
   showCard();
@@ -2674,7 +2691,7 @@ function initSwipe(){
   if(!stage||!el||stage.dataset.swipeReady)return;
   stage.dataset.swipeReady='1';                  // 只綁一次，showCard 每張都會呼叫
   const L=$('#shLeft'), R=$('#shRight');
-  const TH=88, TH2=200;                           // 滑超過 TH 算數；右滑超過 TH2＝立刻想起（QQ：四段評分要能用手勢）
+  const TH=88; let TH2=200, lastFar=false;       // 滑超過 TH 算數；右滑超過 TH2＝立刻想起（QQ：四段評分要能用手勢）。TH2 依卡寬算，320px 螢幕也滑得到（Codex 7-6）
   let x0=0,y0=0,dx=0,axis=null,swallowClick=false;
 
   const paint=()=>{
@@ -2684,12 +2701,13 @@ function initSwipe(){
     const hit=Math.abs(dx)>=TH, far=dx>=TH2;
     L.classList.toggle('on',dx<-14); R.classList.toggle('on',dx>14);
     L.style.transform=R.style.transform=hit?'scale(1.06)':'';
-    R.innerHTML = far ? '<span class="sh-emo">⚡</span>立刻想起' : '<span class="sh-emo">🌱</span>想起來了';
-    R.classList.toggle('far',far);
+    if(far!==lastFar){ lastFar=far; R.innerHTML = far ? '<span class="sh-emo">⚡</span>立刻想起' : '<span class="sh-emo">🌱</span>想起來了'; R.classList.toggle('far',far); }
   };
-  const clear=()=>{L.classList.remove('on');R.classList.remove('on');};
+  const clear=()=>{L.classList.remove('on');R.classList.remove('on');R.classList.remove('far');lastFar=false;R.innerHTML='<span class="sh-emo">🌱</span>想起來了';};
+  /* 系統取消手勢（來電、通知中心拉下來）：只回彈，不評分（Codex 7-5） */
+  const cancel=()=>{ if(!x0&&!dx) return; el.classList.remove('dragging','fly','settle'); el.style.transform=''; el.style.opacity=''; clear(); x0=0; dx=0; axis=null; };
 
-  const start=(x,y)=>{ if(!revealed)return; x0=x;y0=y;dx=0;axis=null; el.classList.add('dragging'); };
+  const start=(x,y)=>{ if(!revealed)return; x0=x;y0=y;dx=0;axis=null; TH2=Math.max(TH+24, Math.min(200, Math.round((el.offsetWidth||360)*0.45))); el.classList.add('dragging'); };
   const move=(x,y,ev)=>{
     if(!revealed||!x0)return;
     const mx=x-x0, my=y-y0;
@@ -2726,7 +2744,7 @@ function initSwipe(){
   el.addEventListener('touchstart',e=>start(e.touches[0].clientX,e.touches[0].clientY),{passive:true});
   el.addEventListener('touchmove', e=>move(e.touches[0].clientX,e.touches[0].clientY,e),{passive:false});
   el.addEventListener('touchend',  end);
-  el.addEventListener('touchcancel',end);
+  el.addEventListener('touchcancel',cancel);
   // 桌機也能用，方便在瀏覽器測
   el.addEventListener('mousedown',e=>{start(e.clientX,e.clientY);
     const mm=ev=>move(ev.clientX,ev.clientY,ev);
@@ -2759,14 +2777,14 @@ const STORE_REVIEW_URL='https://apps.apple.com/tw/app/id6784779535?action=write-
 function usageSummary(){
   try{
     const days=Object.keys(DAYS||{}).length, total=Object.values(DAYS||{}).reduce((a,b)=>a+b,0);
-    const ev=LS.get('ja_events',[]); const modes={}; ev.forEach(e=>{ if(e&&e.ev==='review_attempt') modes[e.mode||'?']=(modes[e.mode||'?']||0)+1; });
+    const modes={}; let okN=0, aN=0; Object.values(DAILY||{}).forEach(d=>{ aN+=d.a||0; okN+=d.ok||0; Object.entries(d.m||{}).forEach(([k,v])=>{ modes[k]=(modes[k]||0)+v; }); });
     const kana=KANA_ROWS_H.flat().filter(Boolean).filter(g=>kanaMastery(g)>=2).length;
     const bl=LS.get('ja_blast',{});
     const md={n2z:'日→中',z2n:'中→日',type:'打字',sentence:'造句',listen:'聽力'};
     return ['— 使用摘要（自動附上，可刪）—',
       `${IS_NATIVE?'iOS':'網頁'}・學習天數 ${days}・總作答 ${total}・連續 ${STAT.streak||0} 天`,
       `有紀錄的字 ${new Set([...Object.keys(SRS||{}),...Object.values(MSRS||{}).flatMap(o=>Object.keys(o||{}))]).size}・五十音會了 ${kana}/46・爆記 ${bl.starts||0} 次`,
-      `模式 ${Object.entries(modes).map(([k,v])=>(md[k]||k)+' '+v).join('／')||'（還沒有）'}`,
+      `模式 ${Object.entries(modes).map(([k,v])=>(md[k]||k)+' '+v).join('／')||'（還沒有）'}・首答正確率 ${aN?Math.round(100*okN/aN)+'%':'—'}${examCfg()?`・目標 ${examCfg().lv} ${examCfg().date}`:''}`,
       `牌組 ${CFG.deck}・方向 ${md[CFG.dir]||CFG.dir}・每天新字 ${CFG.newPerDay??15}・Pro ${isPro()?'是':'否'}`].join('\n');
   }catch(e){ return ''; }
 }
@@ -2810,7 +2828,8 @@ function renderNewPerDaySelect(){
   sel.innerHTML=opts.map(n=>`<option value="${n}"${n===cur?' selected':''}>${n} 個</option>`).join('');
 }
 $('#newPerDaySelect').onchange=()=>{ CFG.newPerDay=+$('#newPerDaySelect').value; LS.set('ja_cfg',CFG); renderHome(); };
-$('#moreBtn').onclick=()=>{ renderNewPerDaySelect(); renderRemindRow(); $('#moreSheet').classList.remove('hidden'); };
+$('#moreBtn').onclick=()=>{ renderNewPerDaySelect(); renderRemindRow(); renderExamRow(); $('#moreSheet').classList.remove('hidden'); };
+$('#examLv').onchange=saveExam; $('#examDate').onchange=saveExam;
 /* ── 每日提醒（原生本機通知，沒有後端）──
    文案在排程當下算好：明天提醒時間前會到期的張數＋新字配額。每次回首頁都重排一次，所以數字跟得上進度。 */
 function remindCfg(){ const r=CFG.remind||{}; return {on:!!r.on, h:Number.isInteger(r.h)?r.h:20, m:Number.isInteger(r.m)?r.m:0, asked:!!r.asked}; }
@@ -2836,6 +2855,22 @@ window.onNotifyStatus=function(o){
   if(!o) return; const r=remindCfg();
   if(o.granted===false && r.on){ r.on=false; remindSave(r); renderRemindRow(); const n=$('#remindNote'); if(n){ n.textContent='通知權限沒有開。到 iOS 設定 › 単語ノート › 通知 打開後再勾一次。'; n.classList.remove('hidden'); } }
 };
+/* ── 考試目標：倒數＋「照現在速度考前學到幾張」。速度用最近 14 天平均每天首次學的新字數，沒有紀錄就用每日目標。 ── */
+function examCfg(){ const e=CFG.exam||{}; return (e.lv&&e.date)?{lv:e.lv,date:e.date}:null; }
+function examLine(){
+  const e=examCfg(); if(!e) return '';
+  const days=Math.ceil((new Date(e.date+'T23:59:59')-Date.now())/DAY); if(days<0) return `${e.lv} 考試已過，設個新目標吧`;
+  const pool=VOCAB.filter(c=>!c.my&&levelOf(c)===e.lv); const learned=pool.filter(c=>isLearned(c.id)).length;
+  const t=new Date(); let sum=0,n=0; for(let i=1;i<=14;i++){ const d=new Date(t); d.setDate(t.getDate()-i); const k=d.toISOString().slice(0,10); if(NEWD[k]!=null){ sum+=NEWD[k]; n++; } }
+  const pace = n>=3 ? sum/n : (CFG.newPerDay??15);
+  const proj=Math.min(pool.length, Math.round(learned + pace*days*0.7));   // 新字要再複習兩次才算學會，打七折
+  return days===0 ? `${e.lv} 就是今天，加油` : `${e.lv} 還有 ${days} 天・照現在速度考前學到 ${numFmt(proj)}／${numFmt(pool.length)}`;
+}
+function renderExamRow(){
+  const lv=$('#examLv'), dt=$('#examDate'), note=$('#examNote'); if(!lv||!dt) return; const e=CFG.exam||{};
+  lv.value=e.lv||''; dt.value=e.date||''; const line=examLine(); if(note){ note.textContent=line||'設了之後首頁會倒數，並估算考前能學到幾張'; }
+}
+function saveExam(){ const lv=$('#examLv').value, date=$('#examDate').value; CFG.exam=(lv&&date)?{lv,date}:null; LS.set('ja_cfg',CFG); renderExamRow(); }
 function renderRemindRow(){
   const row=$('#remindRow'); if(!row) return; if(!IS_NATIVE){ row.classList.add('hidden'); return; }
   row.classList.remove('hidden'); const r=remindCfg();
@@ -2851,6 +2886,7 @@ $('#remindNo').onclick=()=>{ const r=remindCfg(); r.asked=true; remindSave(r); $
 $('#moreClose').onclick=()=>$('#moreSheet').classList.add('hidden');
 document.querySelectorAll('#moreSheet .util button, #moreSheet .reviewlink').forEach(b=>b.addEventListener('click',()=>$('#moreSheet').classList.add('hidden')));
 function finishStudy(){$('#study').classList.add('hidden');$('#done').classList.remove('hidden');
+  if(SESSION_ID){ evPush({v:1,ev:'session_end',t:Date.now(),sid:SESSION_ID,answers:sessionAnswers,cards:sessionCardCount,retry:RETRY.length}); SESSION_ID=null; }
   $('#doneArt').innerHTML=pengu('happy',132);
   { const r=remindCfg(); const a=$('#remindAsk'); if(a) a.classList.toggle('hidden', !(IS_NATIVE && !r.on && !r.asked && Object.keys(DAYS||{}).length>=2)); }
   { const h=$('#doneHanko'); if(h){ h.classList.remove('stamp'); void h.offsetWidth; h.classList.add('stamp'); } }
@@ -2899,7 +2935,7 @@ function showSentences(){
   $('#sentSpeed').style.display=(curSent.length&&HAS_AUDIO)?'':'none';
   $('#sentSpeed').innerHTML=I_SPK+' 語速 '+exSpeed()+'×';
   $('#sentList').innerHTML = curSent.length
-    ? curSent.map(it=>`<div class="ex"><div class="extext"><span class="exnl" data-pl="${esc(it.nl).replace(/"/g,'&quot;')}" data-rb="${esc(it.rb||'').replace(/"/g,'&quot;')}">${exBody(it.nl,it.rb)}</span><span class="exzh">${esc(it.zh||'')}</span></div>${HAS_AUDIO?`<button class="exaud" onclick="play('${it.k}',${it.cid})">${I_SPK}</button>`:''}${sentGramBtn(it)}<button class="exbk on" onclick="toggleExStar(${it.cid},'${it.k}');this.closest('.ex').remove()">${I_BK}</button></div>`).join('')
+    ? curSent.map(it=>`<div class="ex"><div class="extext"><span class="exnl" data-pl="${esc(it.nl).replace(/"/g,'&quot;')}" data-rb="${esc(it.rb||'').replace(/"/g,'&quot;')}">${exBody(it.nl,it.rb)}</span><span class="exzh">${esc(it.zh||'')}</span></div>${(HAS_AUDIO&&it.cid<MYCARD_BASE)?`<button class="exaud" onclick="play('${it.k}',${it.cid})">${I_SPK}</button>`:''}${sentGramBtn(it)}<button class="exbk on" onclick="toggleExStar(${it.cid},'${it.k}');this.closest('.ex').remove()">${I_BK}</button></div>`).join('')
     : '<p style="text-align:center;color:var(--muted);padding:46px 20px">還沒有收藏的句子。<br>複習時點例句下面的「☆ 收藏」就能收藏，之後可以在這裡專門複習、連播練聽力、開解說。</p>';
 }
 /* 收藏句直接開同一句的解說（原本要回去搜那個字）；標籤沿用卡背那顆，試看額度算法一致 */
@@ -2909,7 +2945,7 @@ function playSentList(){
   if(!HAS_AUDIO||!curSent.length)return;
   if(BLAST_ACTIVE)return;
   if(!AUD)AUD=new Audio();let i=0;
-  let fails=0;const _g=++AUDIO_GEN,_list=curSent.slice();
+  let fails=0;const _g=++AUDIO_GEN,_list=curSent.filter(x=>x.cid<MYCARD_BASE);if(!_list.length)return;   // 自建卡沒音檔（Codex 7-4）
   const next=()=>{if(BLAST_ACTIVE||AUDIO_GEN!==_g)return;if(i>=_list.length){AUD.onended=null;if(fails)audioToast(AUDFAILMSG);return;}AUD.src=audioSrc(_list[i].k,_list[i].cid);AUD.playbackRate=0.92*exSpeed();i++;AUD.onended=next;AUD.play().catch(e=>{if(realAudioFail(e))fails++;next();});};
   next();
 }
@@ -3152,7 +3188,8 @@ function renderMascot(){
   if(POKE_T) return;   // 正在戳，2.6 秒後會自己回來
   const [main,sub,face,pct]=mascotProgress();
   if(a.dataset.face!==face){ a.innerHTML=pengu(face,76); a.dataset.face=face; }   // 表情沒變就留著原本的 SVG，不然每次重繪首頁眨眼都從頭數（Codex 5）
-  b.innerHTML=`${esc(main)}<small>${esc(sub)}</small><div class="mbar"><i style="width:${pct}%"></i></div>`;
+  const ex=examLine();
+  b.innerHTML=`${esc(main)}<small>${esc(sub)}</small><div class="mbar"><i style="width:${pct}%"></i></div>${ex?`<small class="mexam">${esc(ex)}</small>`:''}`;
   if(!a.dataset.poke){ a.dataset.poke='1'; a.onclick=pokeMascot; a.style.cursor='pointer'; a.setAttribute('role','button'); a.setAttribute('tabindex','0'); a.setAttribute('aria-label','點企鵝聽一個單字');
     a.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); pokeMascot(); } }; }
   const r=$('#mascotRecent'); if(!r) return;
@@ -3392,7 +3429,7 @@ $('#pwIn').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 $('#startBtn').onclick=startStudy;
 /* 加碼一批新字。刻意做成要按一下——多學是使用者的主動決定，不是預設行為。 */
 $('#moreNewBtn').onclick=()=>{ grantExtraNew(CFG.newPerDay||15); renderHome(); startStudy(); };
-$('#quitBtn').onclick=()=>{lastSnap=null;renderHome();};
+$('#quitBtn').onclick=()=>{ if(SESSION_ID){ evPush({v:1,ev:'session_quit',t:Date.now(),sid:SESSION_ID,answers:sessionAnswers,at:qi,of:sessionTotal}); SESSION_ID=null; } lastSnap=null;renderHome();};
 $('#doneBack').onclick=()=>{lastSnap=null;renderHome();};
 $('#myExBtn').onclick=showSentences;
 $('#sentBack').onclick=()=>{renderHome();};
