@@ -763,6 +763,7 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
     <div class="kmrule">一行五個字全部「會了」，下一行才會亮起來。點任何一格看讀音、聽發音、看你已經讀得出來的真字。</div>
     <button class="bigbtn" id="kmStudy">練這一行</button>
     <button class="subtoggle" id="kmDrill" style="margin-top:10px">⚡ 快問快答（10 題）</button>
+    <button class="subtoggle hidden" id="kmPreview" style="margin-top:6px"></button>
     <div class="dbox hidden" id="drillBox"></div>
   </div>
   <!-- 單字快問快答：四選一（看字選意思／看意思選字／聽音選字），答完才播音，計入對應技能家族，同日不重複晉級 -->
@@ -3275,8 +3276,13 @@ function kanaCard(g){ if(!KANA_BY_GLYPH){ KANA_BY_GLYPH={}; VOCAB.forEach(c=>{ i
 function kanaOwnSrs(id,fam){ return fam==='recog' ? SRS[id] : (MSRS[fam]||{})[id]; }
 function kanaLevelOf(s){ if(!s) return 0; if((s.interval||0)>=14) return 3; if((s.reps||0)>=2&&(s.interval||0)>=4) return 2; return 1; }
 function kanaMastery(g){ const c=kanaCard(g); if(!c) return 0; return Math.max(...['recog','prod','listen'].map(f=>kanaLevelOf(kanaOwnSrs(c.id,f)))); }
-function kanaUnlockedRows(script){ const rows=kanaRows(script); let n=1;
+/* 自然解鎖：前一行全部 ≥2 才開下一行。預習：使用者可以主動先開下一行（只能超前一行），熟練度照舊算，不會因為預習就變熟（路線圖 2.3 第 5 項）。 */
+function kanaNaturalRows(script){ const rows=kanaRows(script); let n=1;
   for(let i=0;i<rows.length-1;i++){ if(rows[i].every(g=>!g||kanaMastery(g)>=2)) n=i+2; else break; } return n; }
+function kanaUnlockedRows(script){ const rows=kanaRows(script), n=kanaNaturalRows(script); const pv=(CFG.kanaPreview||{})[script]||0;
+  return Math.min(rows.length, Math.max(n, Math.min(pv, n+1))); }
+function kanaPreviewNext(script){ script=script||CFG.kanaScript||'h'; const n=kanaNaturalRows(script); if(n>=kanaRows(script).length) return;
+  CFG.kanaPreview=Object.assign({},CFG.kanaPreview||{}); CFG.kanaPreview[script]=n+1; LS.set('ja_cfg',CFG); renderKanaMap(); }
 function kanaUnlockedSet(script){ const rows=kanaRows(script), n=kanaUnlockedRows(script), set=new Set();
   for(let i=0;i<n;i++) rows[i].forEach(g=>{ if(g) set.add(g); }); return set; }
 /* 只用「已解鎖假名」就讀得出來的真字。ー 一律允許；小字っゃゅょ在對應大字解鎖後允許。 */
@@ -3319,6 +3325,8 @@ function renderKanaMap(){
     else if(due&&fresh) b.textContent=`複習 ${due} 張＋練新的一行（${cur}）`;
     else if(due) b.textContent= due>REVIEW_CHUNK ? `先複習 ${REVIEW_CHUNK} 張，共 ${due} 張` : `複習到期的 ${due} 張`;
     else b.textContent=`練這一行：${cur}`; }
+  { const b=$('#kmPreview'); if(b){ const n0=kanaNaturalRows(sc); const pv=(CFG.kanaPreview||{})[sc]||0; const can = n0<rows.length && unl===n0;   // 還沒預習、且還有下一行
+      b.classList.toggle('hidden',!can); if(can){ const nxt=rows[n0].filter(Boolean).join(''); b.textContent=`先預習下一行：${nxt}`; b.onclick=()=>kanaPreviewNext(sc); } } }
   document.querySelectorAll('#kmGrid .kmc[data-g]').forEach(el=>{ el.onclick=()=>showKanaDetail(el.dataset.g); el.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();el.click();} }; });
 }
 function openKanaMap(){
