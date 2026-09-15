@@ -1238,7 +1238,7 @@ let QUEUE=[],qi=0,sessionTotal=0,lastSnap=null,exSeen=new Set();
 let RETRY=[], sessionCardCount=0, sessionAnswers=0, deferredRetry=false;
 /* 一輪最多 20 張到期卡：一週沒開回來有 83 張時，先給做得完的一份，剩的完成頁再接。到期早的先出。 */
 const REVIEW_CHUNK=20; let CHUNK_LEFT=0;
-function buildQueue(){lastSnap=null;SM_MILE={};BLAST_SESSION++;BLAST_ROUND=0;if(BLAST_ACTIVE)blastAbort();const cards=modeCards();const dueAll=cards.filter(c=>{const s=srsGet(c.id);return s&&s.due<=now();}).sort((a,b)=>(srsGet(a.id).due||0)-(srsGet(b.id).due||0));const due=dueAll.length>REVIEW_CHUNK?dueAll.slice(0,REVIEW_CHUNK):dueAll;CHUNK_LEFT=dueAll.length-due.length;const fresh=cards.filter(c=>!srsGet(c.id)).slice(0,newLeftToday());const probes=probeCards(cards);const probeIds=new Set(probes.map(c=>c.id));let q=[...due,...probes,...fresh];for(let i=q.length-1;i>0;i--){const j=Math.floor((Math.sin(i*99.13+q.length)*0.5+0.5)*(i+1));[q[i],q[j]]=[q[j],q[i]];}QUEUE=q.map(c=>({card:c,probe:probeIds.has(c.id)}));qi=0;sessionTotal=QUEUE.length;RETRY=[];sessionCardCount=QUEUE.length;sessionAnswers=0;deferredRetry=false;}
+function buildQueue(){lastSnap=null;SM_MILE={};BLAST_SESSION++;BLAST_ROUND=0;if(BLAST_ACTIVE)blastAbort();const cards=modeCards();const dueAll=cards.filter(c=>{const s=srsGet(c.id);return s&&s.due<=now();}).sort((a,b)=>(srsGet(a.id).due||0)-(srsGet(b.id).due||0));const chunked=dueAll.length>REVIEW_CHUNK;const due=chunked?dueAll.slice(0,REVIEW_CHUNK):dueAll;CHUNK_LEFT=dueAll.length-due.length;const fresh=chunked?[]:cards.filter(c=>!srsGet(c.id)).slice(0,newLeftToday());/* 積壓輪只放到期卡，清完再開新字（Codex 11-1） */const probes=chunked?[]:probeCards(cards);const probeIds=new Set(probes.map(c=>c.id));let q=[...due,...probes,...fresh];for(let i=q.length-1;i>0;i--){const j=Math.floor((Math.sin(i*99.13+q.length)*0.5+0.5)*(i+1));[q[i],q[j]]=[q[j],q[i]];}QUEUE=q.map(c=>({card:c,probe:probeIds.has(c.id)}));qi=0;sessionTotal=QUEUE.length;RETRY=[];sessionCardCount=QUEUE.length;sessionAnswers=0;deferredRetry=false;}
 /* 三鍵預覽用的「下次幾天後」，公式跟 schedule() 一致（不寫 due、不存） */
 /* 這個家族的起始狀態：有自己的紀錄用自己的；只有辨識紀錄→當成剛認識第二次（reps=1）；什麼都沒有→新卡。預覽與 schedule 共用（Codex 8-2） */
 function famStartState(id,fam){ fam=fam||curFam(); const own = fam==='recog' ? SRS[id] : (MSRS[fam]||{})[id]; if(own) return JSON.parse(JSON.stringify(own)); if(fam!=='recog' && SRS[id]) return {interval:0,ease:SRS[id].ease||2.5,reps:1,lapses:0}; return {interval:0,ease:2.5,reps:0,lapses:0}; }
@@ -1451,7 +1451,7 @@ const DAY0=86400000;
    舊版忽略多出來的格子。這樣新舊版共用同一份 iCloud 備份時，舊版不會拒讀再用只含一張卡的 v3 蓋掉整份（Codex 4-2）。
    到期天改用 floor（不是 round），分鐘才補得回去；舊版讀到的到期最多提早 24 小時，方向是安全的。 */
 function packSrs(s){ const due=s.due||0, d=Math.floor(due/DAY0), m=Math.max(0,Math.round((due-d*DAY0)/60000));
-  return [s.interval|0, Math.round((s.ease||2.5)*10), s.reps|0, s.lapses|0, d, s.lf|0, m, Math.round((s.ease||2.5)*100), s.last?Math.round(s.last/60000):0]; }   // 第 9 格：最後複習（分鐘）——Drill 同日防護要靠它（Codex 8-6）
+  return [s.interval|0, Math.round((s.ease||2.5)*10), s.reps|0, s.lapses|0, d, s.lf|0, m, Math.round((s.ease||2.5)*100), s.last?Math.floor(s.last/60000):0]; }   // 第 9 格：最後複習（分鐘）——Drill 同日防護要靠它（Codex 8-6）
 function unpackSrs(a,v){ if(v===4) return {interval:a[0],ease:a[1]/100,reps:a[2],lapses:a[3],due:a[4]*60000,...(a[5]?{lf:a[5]}:{})};   // 50/51 兩個 TestFlight 版寫過的 v4
   const o={interval:a[0],ease:(a[7]!=null&&Number.isFinite(+a[7]))?a[7]/100:a[1]/10,reps:a[2],lapses:a[3],due:a[4]*DAY0+((a[6]!=null&&Number.isFinite(+a[6]))?a[6]*60000:0)}; if(a[5]) o.lf=a[5]; if(a[8]) o.last=a[8]*60000; return o; }
 function packState(){
@@ -1890,7 +1890,9 @@ async function showGram(cardId, exKey){
   else { tasteLine.classList.add('hidden'); }
   const taste=nowPaid
     ? `<div class="gtaste"><span>想每句都看？解鎖後 N3–N1 每句都有解說</span><button onclick="$('#grampop').classList.add('hidden');openPaywall({cardId:${cardId},exKey:'${exKey}'})">解鎖</button></div>`
-    : (!isPro() ? `<div class="gtaste gfree"><span>N5・N4 的解說免費。想 N3 到 N1 每一句都有？一次解鎖${window.WJ_PRICE?'（'+esc(window.WJ_PRICE)+'）':''}，也是支持一個人開發</span><button onclick="$('#grampop').classList.add('hidden');openPaywall({cardId:${cardId},exKey:'${exKey}',source:'gram_free_bottom'})">解鎖・支持</button></div>` : '');
+    : (!isPro() ? (IS_NATIVE
+        ? `<div class="gtaste gfree"><span>N5・N4 的解說免費。想 N3 到 N1 每一句都有？一次解鎖${window.WJ_PRICE?'（'+esc(window.WJ_PRICE)+'）':''}，也是支持一個人開發</span><button onclick="$('#grampop').classList.add('hidden');openPaywall({cardId:${cardId},exKey:'${exKey}',source:'gram_free_bottom'})">解鎖・支持</button></div>`
+        : `<div class="gtaste gfree"><span>N5・N4 的解說免費。N3 到 N1 每一句的解說在 App 裡一次解鎖</span><button onclick="openExternal('https://apps.apple.com/tw/app/id6784779535')">到 App Store</button></div>`) : '');   // 網頁版沒有內購（Codex 11-4）
   GRAM_WORDS=d.words||[];
   const srcCard=VOCAB.find(c=>c.id==cardId);
   const zhKey=exKey==='ex'?'exzh':'exzh'+exKey.slice(2);
@@ -2838,7 +2840,7 @@ function usageSummary(){
     const bl=LS.get('ja_blast',{});
     const md={n2z:'日→中',z2n:'中→日',type:'打字',sentence:'例句填空',listen:'聽力',drill:'假名快答',quiz_recog:'快答·看字',quiz_prod:'快答·選字',quiz_listen:'快答·聽音'};
     return ['— 使用摘要（自動附上，可刪）—',
-      `${IS_NATIVE?'iOS':'網頁'}・學習天數 ${days}・總作答 ${total}・連續 ${STAT.streak||0} 天`,
+      `${IS_NATIVE?'iOS':'網頁'}・學習天數 ${days}・作答 ${Object.values(DAILY||{}).reduce((x,d)=>x+(d.a||0),0)} 次（近 120 天）・排程更新 ${total}・連續 ${STAT.streak||0} 天`,
       `有紀錄的字 ${new Set([...Object.keys(SRS||{}),...Object.values(MSRS||{}).flatMap(o=>Object.keys(o||{}))]).size}・五十音會了 ${kana}/46・爆記 ${bl.starts||0} 次`,
       `模式 ${Object.entries(modes).map(([k,v])=>(md[k]||k)+' '+v).join('／')||'（還沒有）'}・首答正確率 ${aN?Math.round(100*okN/aN)+'%':'—'}${examCfg()?`・目標 ${examCfg().lv} ${examCfg().date}`:''}`,
       `牌組 ${CFG.deck}・方向 ${md[CFG.dir]||CFG.dir}・每天新字 ${CFG.newPerDay??15}・Pro ${isPro()?'是':'否'}`].join('\n');
