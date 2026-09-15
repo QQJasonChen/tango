@@ -818,6 +818,7 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
       <div class="grip"></div>
       <h2>🔥 學習熱力圖</h2>
       <div id="heatStats" class="heatStats"></div>
+      <div id="heatWeek" class="heatNote" style="margin:-4px 0 10px;color:var(--navy);font-weight:700"></div>
       <div class="heatWrap"><div id="heatGrid" class="heatGrid"></div></div>
       <div class="heatLegend">少 <span class="hcell"></span><span class="hcell l1"></span><span class="hcell l2"></span><span class="hcell l3"></span><span class="hcell l4"></span> 多</div>
       <div class="heatNote">每天複習就會點亮一格 · 顯示近半年</div>
@@ -1060,7 +1061,7 @@ let STAT = LS.get('ja_stat', {streak:0, lastDay:null, today:0, todayDate:null});
 let DAYS = LS.get('ja_days', {});   // {'YYYY-MM-DD': 當天複習張數} — 熱力圖用
 /* 每日彙總（保留 120 天）：作答數、首答正確數、各模式作答數。事件只留 600 筆會偏，摘要與週報要看這份。 */
 let DAILY = LS.get('ja_daily', {});
-function dailyBump(mode, firstOk){ const t=todayStr(); const d=DAILY[t]||(DAILY[t]={a:0,ok:0,j:0,k:0,m:{}}); d.a++; if(firstOk===true||firstOk===false){ d.j=(d.j||0)+1; if(firstOk){ d.ok++; d.k=(d.k||0)+1; } } d.m[mode]=(d.m[mode]||0)+1;   // k＝客觀答對（跟 j 同期），舊資料的 ok 沒有分母不能拿來算（Codex 9-4）
+function dailyBump(mode, firstOk){ const t=todayStr(); const d=DAILY[t]||(DAILY[t]={a:0,ok:0,j:0,k:0,kj:0,m:{}}); d.a++; if(firstOk===true||firstOk===false){ d.j=(d.j||0)+1; d.kj=(d.kj||0)+1; if(firstOk){ d.ok++; d.k=(d.k||0)+1; } } d.m[mode]=(d.m[mode]||0)+1;   // k／kj 同期成對，舊資料的 j/ok 不混用（Codex 10-6）   // k＝客觀答對（跟 j 同期），舊資料的 ok 沒有分母不能拿來算（Codex 9-4）
   const ks=Object.keys(DAILY).sort(); while(ks.length>120){ delete DAILY[ks.shift()]; } LS.set('ja_daily',DAILY); }
 /* {'YYYY-MM-DD': 當天「第一次學到」的新字張數} — 每日新字配額用。
    原本 newPerDay 只在 buildQueue 當「每一輪」的上限：使用者設 10 字/天，
@@ -1689,6 +1690,11 @@ function openHeat(){
     el.title=ds+(n?` · ${n} 張`:' · 未學');
     g.appendChild(el);
   }
+  /* 本週小結（近 7 個本地日）：學習天數／作答／客觀首答率／新學——能力週報的資料骨架先在這裡露臉 */
+  { const w=$('#heatWeek'); if(w){ let days=0,a=0,j=0,k=0,nw=0; const t=new Date();
+      for(let i=0;i<7;i++){ const d=new Date(t); d.setDate(t.getDate()-i); const key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+        if(DAYS[key]) days++; const x=(typeof DAILY!=='undefined'&&DAILY[key])||null; if(x){ a+=x.a||0; j+=x.kj||0; k+=x.k||0; } nw+=(NEWD[key]||0); }
+      w.textContent = a||days ? `本週：學習 ${days} 天・作答 ${a} 次${j?`・首答正確 ${Math.round(100*k/j)}%`:''}・新學 ${nw} 字` : '本週還沒開始，今天就是好日子'; } }
   $('#heatStats').innerHTML=
     `<div><b>${STAT.streak||0}</b><span class="lab">連續天數 🔥</span></div>`+
     `<div><b>${active}</b><span class="lab">學習天數</span></div>`+
@@ -2205,7 +2211,7 @@ function showCard(){
   else if(dir==='type'){front=`<span class="cefr">${lvBadge(card)}</span><div class="zhbig" style="font-size:28px">${esc(card.zh)}</div>${hint}<div class="typebox"><input id="typeIn" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="用日文輸入…"></div>`;}
   else if(dir==='sentence'){ const cz=clozeOf(card);
     front = cz
-      ? `<span class="cefr">${lvBadge(card)}</span>${hint}<div class="zhbig" style="font-size:22px;line-height:1.5">${esc(cz.ex.replace(cz.surf,'＿＿＿'))}</div><div class="zh" style="margin-top:8px;color:var(--muted);font-size:15px">${esc(card.exzh||'')}</div><div class="typebox"><input id="typeIn" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="填入空格的日文（漢字或假名都可以）"></div>`
+      ? `<span class="cefr">${lvBadge(card)}</span>${hint}<div class="zhbig" style="font-size:22px;line-height:1.5">${clozeFront(cz)}</div><div class="zh" style="margin-top:8px;color:var(--muted);font-size:15px">${esc(card.exzh||'')}</div><div class="typebox"><input id="typeIn" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="填入空格的日文（漢字或假名都可以）"></div>`
       : `<span class="cefr">${lvBadge(card)}</span>${hint}<div class="zhbig" style="font-size:21px;line-height:1.45">${esc(card.exzh||card.zh)}</div><div class="typebox"><input id="typeIn" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="輸入整句日文…"></div>`; }
   else{front=`<span class="cefr">${lvBadge(card)}</span>${posL?`<span class="pos">${posL}</span>`:''}${card.img?`<img class="cardimg" src="images/img_${card.id}.webp" alt="">`:''}<div class="wordrow"><div class="word">${wordHtml(card.nl)}</div>${HAS_AUDIO&&!card.my?`<button class="wordaud" onclick="event.stopPropagation();play('w',${card.id})">${I_SPK}</button>`:''}</div>${hint}`;}
   $('#card').innerHTML=front;
@@ -2237,7 +2243,7 @@ function taskHintHtml(card){
   const isNewCard=!srsGet(card.id);
   // ⑨：假名判斷要看「這張卡」的級別，不是目前選的牌組——deck='all'／'star' 這類
   // 混合牌組裡本來就會混到 KANA 卡，用 CFG.deck 判斷會漏掉這些卡。
-  const text = isNewCard ? ((CFG.dir==='type'||CFG.dir==='sentence') ? '先看答案認識它' : (levelOf(card)==='KANA' ? '先聽一次再翻面。不會就選「沒想起來」，等一下會再遇到它' : '還不會也沒關係，先聽一次')) : (levelOf(card)==='KANA' ? '看到它就念出來' : (TASK_HINT[CFG.dir]||''));
+  const text = isNewCard ? ((CFG.dir==='type'||CFG.dir==='sentence') ? '先看答案認識它' : (levelOf(card)==='KANA' ? '先聽一次再翻面。不會就選「沒想起來」，等一下會再遇到它' : '還不會也沒關係，先聽一次')) : (levelOf(card)==='KANA' ? '看到它就念出來' : (CFG.dir==='sentence'&&!clozeOf(card) ? '把中文翻成日文' : (TASK_HINT[CFG.dir]||'')));
   if(!text) return '';
   return `<div class="hintline">${isNewCard?'<span class="newtag">第一次認識</span><br>':''}${esc(text)}</div>`;
 }
@@ -2256,12 +2262,18 @@ function cleanSent(s){
 /* 例句裡的目標詞（可能是變化形：読む→読みます）。找不到就回 null，該卡退回整句翻譯。 */
 function clozeOf(card){
   const ex=card.ex||'', nl=card.nl||''; if(!ex||!nl||levelOf(card)==='KANA') return null;
-  if(ex.includes(nl)) return {ex, surf:nl};
-  const kana=kanaOfCard(card)||''; if(kana && kana!==nl && ex.includes(kana)) return {ex, surf:kana};
-  // 變化形：去掉最後一個假名當詞幹，詞幹至少 2 字且在句中只出現一次，接著的假名一起算進空格
-  if(/[ぁ-ゖ]$/.test(nl) && nl.length>=3){ const stem=nl.slice(0,-1); const i=ex.indexOf(stem); if(i>=0 && ex.indexOf(stem,i+1)<0){ const m=ex.slice(i+stem.length).match(/^[ぁ-ゖ]{0,4}/); return {ex, surf:stem+(m?m[0]:'')}; } }
-  return null;
+  const KJ=/[一-鿿々]/;
+  /* 只挖「唯一、且有詞界」的直接命中：「日」不能挖「今日」「日本」裡的日（Codex 10-1）；變化形（読む→読みます）不猜，退回整句翻譯（Codex 10-2） */
+  const tryHit=(needle)=>{ if(!needle) return null; const i=ex.indexOf(needle); if(i<0 || ex.indexOf(needle,i+1)>=0) return null;
+    const before=ex[i-1]||'', after=ex[i+needle.length]||'';
+    if(KJ.test(needle) && (KJ.test(before)||KJ.test(after))) return null;          // 漢字詞兩側不能再接漢字
+    if(!KJ.test(needle) && (/[ぁ-ゖ]/.test(before)||/[ぁ-ゖ]/.test(after)) && needle.length<=2) return null;   // 短假名詞兩側不能接假名（「か」在「なにか」）
+    return {ex, surf:needle, start:i, len:needle.length}; };
+  const kana=kanaOfCard(card)||'';
+  return tryHit(nl) || (kana&&kana!==nl ? tryHit(kana) : null);
 }
+function clozeFront(cz){ return esc(cz.ex.slice(0,cz.start))+'＿＿＿'+esc(cz.ex.slice(cz.start+cz.len)); }
+function clozeAnswerHtml(cz){ return esc(cz.ex.slice(0,cz.start))+`<b style="color:var(--orange)">${esc(cz.surf)}</b>`+esc(cz.ex.slice(cz.start+cz.len)); }
 function clozeOK(typed,card,cz){ const t=(typed||'').trim(); if(!t) return false; const cands=[cz.surf, card.nl, kanaOfCard(card)||''].filter(Boolean);
   return cands.some(c=>c===t) || cands.some(c=>toHira(c)===toHira(t)); }
 function sentenceOK(typed,ex){
@@ -2281,7 +2293,7 @@ function checkType(){
   const {card}=QUEUE[qi];const inp=$('#typeIn');if(!inp)return;
   const isSent=CFG.dir==='sentence'; const cz=isSent?clozeOf(card):null;
   let ok=isSent?(cz?clozeOK(inp.value,card,cz):sentenceOK(inp.value,card.ex)):answerOK(inp.value,card);
-  const ans=isSent?(cz?esc(cz.ex).replace(esc(cz.surf),`<b style="color:var(--orange)">${esc(cz.surf)}</b>`):esc(card.ex||'')):wordHtml(card.nl);
+  const ans=isSent?(cz?clozeAnswerHtml(cz):esc(card.ex||'')):wordHtml(card.nl);
   let note='';
   if(!ok&&!isSent){
     const sib=findZhSibling(inp.value,card);
@@ -2821,7 +2833,7 @@ const STORE_REVIEW_URL='https://apps.apple.com/tw/app/id6784779535?action=write-
 function usageSummary(){
   try{
     const days=Object.keys(DAYS||{}).length, total=Object.values(DAYS||{}).reduce((a,b)=>a+b,0);
-    const modes={}; let okN=0, aN=0; Object.values(DAILY||{}).forEach(d=>{ aN+=d.j||0; okN+=d.k||0; Object.entries(d.m||{}).forEach(([k,v])=>{ modes[k]=(modes[k]||0)+v; }); });   // 首答率＝k／j（同期客觀）
+    const modes={}; let okN=0, aN=0; Object.values(DAILY||{}).forEach(d=>{ aN+=d.kj||0; okN+=d.k||0; Object.entries(d.m||{}).forEach(([k,v])=>{ modes[k]=(modes[k]||0)+v; }); });   // 首答率＝k／kj（同期客觀）
     const kana=KANA_ROWS_H.flat().filter(Boolean).filter(g=>kanaMastery(g)>=2).length;
     const bl=LS.get('ja_blast',{});
     const md={n2z:'日→中',z2n:'中→日',type:'打字',sentence:'例句填空',listen:'聽力',drill:'假名快答',quiz_recog:'快答·看字',quiz_prod:'快答·選字',quiz_listen:'快答·聽音'};
@@ -3385,15 +3397,20 @@ function quizQ(){ const d=VQ; if(!d) return; const q=d.qs[d.i], c=q.c;
   const prompt = q.kind==='w2z' ? `<div class="big" style="font-size:44px">${esc(c.nl)}</div><div class="ask">是什麼意思？</div>`
     : q.kind==='z2w' ? `<div class="big" style="font-size:32px">${esc(zhBase(c.zh))}</div><div class="ask">日文是哪一個？</div>`
     : `<div class="big"><button class="aud lg" onclick="play('w',${c.id})">${I_SPK}</button></div><div class="ask">聽到的是哪一個？</div>`;
-  const optHtml=q.opts.map((o,k)=>`<button class="dopt" style="font-size:${q.kind==='w2z'?17:21}px;padding:6px 8px" data-k="${k}" onclick="quizAnswer(${k})">${esc(q.kind==='w2z'?zhBase(o.zh):o.nl)}</button>`).join('');
+  const optHtml=q.opts.map((o,k)=>`<button class="dopt" style="font-size:${q.kind==='w2z'?17:21}px;padding:6px 8px" data-k="${k}" ${q.kind==='listen'?'disabled':''} onclick="quizAnswer(${k})">${esc(q.kind==='w2z'?zhBase(o.zh):o.nl)}</button>`).join('');   // 聽力題等音檔就緒才開放作答（Codex 10-4）
   $('#vqBox').innerHTML=`<div class="dtop"><span>第 ${d.i+1} / ${d.qs.length} 題</span><span>答對 ${d.ok}</span></div><div class="dq">${prompt}</div><div class="dopts">${optHtml}</div><button class="subtoggle" style="margin-top:14px" onclick="quizEnd(true)">先結束</button>`;
   d.lock=false;
   if(q.kind==='listen'&&HAS_AUDIO){ const at=d.i; setTimeout(()=>{ if(VQ===d&&d.i===at&&!$('#vquiz').classList.contains('hidden')) play('w',c.id); },150);
     /* 音檔載入失敗＝這題沒有題目：不能評分、不能寫排程；給「跳過」（Codex 9-7） */
-    try{ const probe=new Audio(); probe.preload='metadata'; probe.onerror=()=>{ if(VQ!==d||d.i!==at) return; q.bad=true; const box=$('#vqBox .dopts'); if(box) box.innerHTML='<div class="kpnone" style="grid-column:1/-1">這題的音檔載不進來，先跳過</div><button class="dopt" style="grid-column:1/-1;font-size:16px" onclick="quizSkip()">跳過這題</button>'; }; probe.src=audioSrc('w',c.id); }catch(e){} }
+    try{ const probe=new Audio(); probe.preload='metadata';
+      probe.onloadedmetadata=()=>{ if(VQ!==d||d.i!==at||q.bad) return; q.ready=true; document.querySelectorAll('#vqBox .dopt').forEach(b=>{ b.disabled=false; }); };
+      probe.onerror=()=>{ if(VQ!==d||d.i!==at||d.lock) return; q.bad=true; const box=$('#vqBox .dopts'); if(box) box.innerHTML='<div class="kpnone" style="grid-column:1/-1">這題的音檔載不進來，先跳過</div><button class="dopt" style="grid-column:1/-1;font-size:16px" onclick="quizSkip()">跳過這題</button>'; };
+      probe.src=audioSrc('w',c.id); q.probe=probe; }catch(e){ q.ready=true; document.querySelectorAll('#vqBox .dopt').forEach(b=>{ b.disabled=false; }); } }
 }
-function quizSkip(){ const d=VQ; if(!d) return; d.i++; if(d.i>=d.qs.length) quizEnd(false); else quizQ(); }
-function quizAnswer(k){ const d=VQ; if(!d||d.lock) return; const q=d.qs[d.i]; if(q.bad) return; d.lock=true; const ok=q.opts[k].id===q.c.id;
+/* 推進只走這裡，且要核對是從哪一題來的：跳過與作答計時器不會各推一次（Codex 10-4） */
+function quizAdvance(d,from){ if(VQ!==d||d.i!==from) return; d.i++; if(d.i>=d.qs.length) quizEnd(false); else quizQ(); }
+function quizSkip(){ const d=VQ; if(!d||d.lock) return; d.skipped=(d.skipped||0)+1; quizAdvance(d,d.i); }
+function quizAnswer(k){ const d=VQ; if(!d||d.lock) return; const q=d.qs[d.i]; if(q.bad || (q.kind==='listen'&&!q.ready)) return; d.lock=true; const ok=q.opts[k].id===q.c.id;
   document.querySelectorAll('#vqBox .dopt').forEach((b,i)=>{ const isAns=q.opts[i].id===q.c.id; b.classList.add(i===k?(ok?'ok':'no'):(isAns?'ok':'dim')); b.disabled=true; });
   if(ok) d.ok++; else d.miss.push(q.c); d.answered++;
   const fam = q.kind==='w2z'?'recog':(q.kind==='z2w'?'prod':'listen'); dailyBump('quiz_'+fam, ok);   // 每次作答都記，跟排程分開（Codex 9-6）
@@ -3403,11 +3420,11 @@ function quizAnswer(k){ const d=VQ; if(!d||d.lock) return; const q=d.qs[d.i]; if
       STAT.today=(STAT.today||0)+1; const t=todayStr(); if(STAT.lastDay!==t){STAT.streak=(STAT.streak||0)+1;STAT.lastDay=t;} DAYS[t]=(DAYS[t]||0)+1; LS.set('ja_days',DAYS);
       if(!Array.isArray(STAT.todayIds)) STAT.todayIds=[]; if(STAT.todayIds.indexOf(q.c.id)<0) STAT.todayIds.push(q.c.id); LS.set('ja_stat',STAT); } }
   if(HAS_AUDIO&&q.kind!=='listen') play('w',q.c.id);   // 答完才聽
-  setTimeout(()=>{ if(VQ!==d) return; d.i++; if(d.i>=d.qs.length) quizEnd(false); else quizQ(); }, ok?600:1200);
+  const from=d.i; setTimeout(()=>quizAdvance(d,from), ok?600:1200);
 }
-function quizEnd(early){ const d=VQ; if(!d) return; const n=early?d.answered:d.qs.length, secs=Math.round((Date.now()-d.t0)/1000); const miss=[...new Map(d.miss.map(c=>[c.id,c])).values()];
-  $('#vqBox').innerHTML=`<div class="dres"><div class="score">${d.ok} / ${n}</div><div class="sub">${secs} 秒${early?'・提早結束':''}</div>${miss.length?`<div class="sub" style="margin-top:12px">這幾個再看一眼</div><div class="dmiss">${miss.map(c=>`<span onclick="showWordPop(${c.id})">${esc(c.nl)}</span>`).join('')}</div>`:'<div class="sub" style="margin-top:12px">全對。</div>'}<div class="ksbtns" style="margin-top:16px"><button onclick="quizStart()">再來 10 題</button><button onclick="quizClose()">關閉</button></div></div>`;
-  evPush({v:1,ev:'quiz_end',t:Date.now(),ok:d.ok,n,early:!!early,deck:CFG.deck}); VQ=null; }
+function quizEnd(early){ const d=VQ; if(!d) return; const n=d.answered, secs=Math.round((Date.now()-d.t0)/1000); const miss=[...new Map(d.miss.map(c=>[c.id,c])).values()];   // 分母一律實答數（Codex 10-5）
+  $('#vqBox').innerHTML=`<div class="dres"><div class="score">${d.ok} / ${n}</div><div class="sub">${secs} 秒${early?'・提早結束':''}${d.skipped?`・跳過 ${d.skipped}`:''}</div>${miss.length?`<div class="sub" style="margin-top:12px">這幾個再看一眼</div><div class="dmiss">${miss.map(c=>`<span onclick="showWordPop(${c.id})">${esc(c.nl)}</span>`).join('')}</div>`:(n>0?'<div class="sub" style="margin-top:12px">全對。</div>':'')}<div class="ksbtns" style="margin-top:16px"><button onclick="quizStart()">再來 10 題</button><button onclick="quizClose()">關閉</button></div></div>`;
+  evPush({v:1,ev:'quiz_end',t:Date.now(),ok:d.ok,n,skipped:d.skipped||0,early:!!early,deck:CFG.deck}); VQ=null; }
 function quizClose(){ VQ=null; stopAllAudio(); $('#vquiz').classList.add('hidden'); try{ $('#home').inert=false; }catch(e){} if(!$('#home').classList.contains('hidden')) renderHome(); }
 $('#quizBtn').onclick=quizStart; $('#vqClose').onclick=quizClose;
 CUSTOM_CLOSE_PW.vquiz=quizClose; $('#vquiz').addEventListener('click',e=>{ if(e.target===$('#vquiz')) quizClose(); });   // 遮罩／Esc 都走 quizClose（Codex 9-2）
