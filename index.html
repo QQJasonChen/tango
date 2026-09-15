@@ -655,6 +655,7 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
 
       <button class="bigbtn" id="startBtn">開始學習</button>
       <button class="subtoggle hidden" id="kanaMapBtn">看五十音表</button>
+      <button class="subtoggle hidden" id="quizBtn">⚡ 快問快答（10 題）</button>
       <!-- 每日新字配額用完時才出現：上限是為了不讓複習量爆炸，但不該變成死路 -->
       <button class="bigbtn ghost hidden" id="moreNewBtn" style="font-size:15px;margin-top:8px"></button>
 
@@ -720,7 +721,8 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
     <p id="doneMsg">今天的複習完成了</p>
     <p id="doneTomorrow"></p>
     <div class="rateask hidden" id="remindAsk"><div class="rq">要不要每天這個時候提醒你？<br><small style="font-weight:500;color:var(--muted)">一天一則，可以在「更多」關掉</small></div><div class="rbtns"><button id="remindNo">不用</button><button class="yes" id="remindYes">好，提醒我</button></div></div>
-    <button class="bigbtn" id="doneBack" style="max-width:240px">回首頁</button>
+    <button class="bigbtn hidden" id="doneMore" style="max-width:240px"></button>
+    <button class="bigbtn ghost" id="doneBack" style="max-width:240px">回首頁</button>
   </div>
 
   <!-- RETRY PANEL：第一輪（或每一輪待再練）答完後，若有沒想起來的卡，先問要不要趁現在再練 -->
@@ -762,6 +764,15 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
     <button class="bigbtn" id="kmStudy">練這一行</button>
     <button class="subtoggle" id="kmDrill" style="margin-top:10px">⚡ 快問快答（10 題）</button>
     <div class="dbox hidden" id="drillBox"></div>
+  </div>
+  <!-- 單字快問快答：四選一（看字選意思／看意思選字／聽音選字），答完才播音，計入對應技能家族，同日不重複晉級 -->
+  <div id="vquiz" class="pw hidden">
+    <div class="sheet">
+      <div class="grip"></div>
+      <h2 style="margin-bottom:6px">⚡ 快問快答</h2>
+      <div id="vqBox"></div>
+      <button class="closex" id="vqClose">關閉</button>
+    </div>
   </div>
   <div id="kanapop" class="pw hidden">
     <div class="sheet">
@@ -1049,7 +1060,7 @@ let STAT = LS.get('ja_stat', {streak:0, lastDay:null, today:0, todayDate:null});
 let DAYS = LS.get('ja_days', {});   // {'YYYY-MM-DD': 當天複習張數} — 熱力圖用
 /* 每日彙總（保留 120 天）：作答數、首答正確數、各模式作答數。事件只留 600 筆會偏，摘要與週報要看這份。 */
 let DAILY = LS.get('ja_daily', {});
-function dailyBump(mode, firstOk){ const t=todayStr(); const d=DAILY[t]||(DAILY[t]={a:0,ok:0,m:{}}); d.a++; if(firstOk===true) d.ok++; d.m[mode]=(d.m[mode]||0)+1;
+function dailyBump(mode, firstOk){ const t=todayStr(); const d=DAILY[t]||(DAILY[t]={a:0,ok:0,j:0,m:{}}); d.a++; if(firstOk===true||firstOk===false){ d.j=(d.j||0)+1; if(firstOk) d.ok++; } d.m[mode]=(d.m[mode]||0)+1;
   const ks=Object.keys(DAILY).sort(); while(ks.length>120){ delete DAILY[ks.shift()]; } LS.set('ja_daily',DAILY); }
 /* {'YYYY-MM-DD': 當天「第一次學到」的新字張數} — 每日新字配額用。
    原本 newPerDay 只在 buildQueue 當「每一輪」的上限：使用者設 10 字/天，
@@ -1063,7 +1074,9 @@ let NEWX = LS.get('ja_newx', {});
 /* 積壓門檻：待複習超過這個數就先不發新字。抓「每日新字量的 5 倍」而不是固定值，
    因為一天背 30 個的人本來就承受得起比較多的複習量。下限 60 是為了不要一開始就卡住。 */
 function backlogCap(){ return Math.max(60, (CFG.newPerDay ?? 15) * 5); }
-function reviewDue(){ return deckCards().filter(c=>{const s=srsGet(c.id);return s&&s.due<=now();}).length; }
+/* 目前模式的候選卡：聽力沒有自建卡的音檔，所以排除——首頁數字、積壓、Widget、佇列全部用這一份（Codex 8-5） */
+function modeCards(){ let c=deckCards(); if(CFG.dir==='listen') c=c.filter(x=>!x.my); return c; }
+function reviewDue(){ return modeCards().filter(c=>{const s=srsGet(c.id);return s&&s.due<=now();}).length; }
 function backlogHeld(){ return reviewDue() >= backlogCap() && !NEWX[todayStr()]; }
 /* ?? 而不是 ||：使用者若明確設 0，0||15 會變成 15，等於關不掉。 */
 function newLeftToday(){ const t=todayStr();
@@ -1171,6 +1184,15 @@ function srsDrop(id, fam){ fam=fam||curFam();
   else if(MSRS[fam]){ delete MSRS[fam][id]; LS.set('ja_msrs',MSRS); }
 }
 function isLearned(id){const s=srsGet(id);return s&&s.reps>=2&&(s.interval||0)>=4;}
+/* 未確認技能的抽測（Codex 策略審查：辨識練熟不等於聽得懂／寫得出）。
+   在中→日／打字／造句／聽力模式下，辨識已學會（reps≥2）但這個技能家族沒有自己的紀錄、且今天沒因辨識到期而出現的卡，
+   每天抽 PROBE_PER_DAY 張放進佇列先測一次；第一次評分會用短間隔起步（見 schedule）。 */
+const PROBE_PER_DAY=5;
+function probeLeftToday(){ const t=todayStr(); if(STAT.probeDate!==t) return PROBE_PER_DAY; return Math.max(0,PROBE_PER_DAY-(STAT.probeN||0)); }
+function probeBump(n){ const t=todayStr(); if(STAT.probeDate!==t){ STAT.probeDate=t; STAT.probeN=0; } STAT.probeN=Math.max(0,(STAT.probeN||0)+n); LS.set('ja_stat',STAT); }
+function isProbe(id,fam){ fam=fam||curFam(); if(fam==='recog') return false; const own=(MSRS[fam]||{})[id]; const r=SRS[id]; return !own && !!r && (r.reps||0)>=2; }
+function probeCards(cards){ const fam=curFam(); if(fam==='recog') return []; const left=probeLeftToday(); if(left<=0) return [];
+  const _n=now(); return cards.filter(c=>isProbe(c.id,fam) && !(SRS[c.id].due<=_n)).sort((a,b)=>(SRS[b.id].interval||0)-(SRS[a.id].interval||0)).slice(0,left); }
 /* 級別／特殊牌組這一層（不含主題）。給 deckCards() 疊主題用，也給主題卡片算
    「這一級交集有幾個」用——兩邊都要同一份「選了哪個級別」的定義，不能各算各的。 */
 function levelCards(){
@@ -1198,10 +1220,10 @@ function deckCards(){
 /* B2：永遠可用的「清除主題」出口——不管目前主題 chip 是不是空的、是不是根本沒出現在
    清單裡（平假名/片假名/低於 30 字的舊主題），都能點掉，不會被卡在「選了卻沒地方取消」。 */
 function clearTheme(){ CFG.theme=null; LS.set('ja_cfg',CFG); renderHome(); }
-function newCount(){return deckCards().filter(c=>!srsGet(c.id)).length;}
-function dueNow(){const cards=deckCards();const due=cards.filter(c=>{const s=srsGet(c.id);return s&&s.due<=now();}).length;const fresh=Math.min(newLeftToday(),cards.filter(c=>!srsGet(c.id)).length);return due+fresh;}
+function newCount(){return modeCards().filter(c=>!srsGet(c.id)).length;}
+function dueNow(){const cards=modeCards();const due=cards.filter(c=>{const s=srsGet(c.id);return s&&s.due<=now();}).length;const fresh=Math.min(newLeftToday(),cards.filter(c=>!srsGet(c.id)).length);return due+probeCards(cards).length+fresh;}
 /* 桌面 widget：把「待複習數 / 連續天數 / 一個要複習的字」推給原生 App（存進 App Group 供 widget 讀）。純網頁環境沒有 webkit 橋接時安靜略過。 */
-function widgetWord(){const cards=deckCards();const due=cards.filter(c=>{const s=srsGet(c.id);return s&&s.due<=now();});const fresh=newLeftToday()>0?cards.filter(c=>!srsGet(c.id)):[];/* 額度用完就別推新字給 widget，App 裡根本開不了 */const pool=due.length?due:fresh;const c=pool[0];return c?{word:c.nl||'',zh:c.zh||''}:{word:'',zh:''};}
+function widgetWord(){const cards=modeCards();const due=cards.filter(c=>{const s=srsGet(c.id);return s&&s.due<=now();});const probes=probeCards(cards);const fresh=newLeftToday()>0?cards.filter(c=>!srsGet(c.id)):[];/* 額度用完就別推新字給 widget，App 裡根本開不了 */const pool=due.length?due:(probes.length?probes:fresh);const c=pool[0];return c?{word:c.nl||'',zh:c.zh||''}:{word:'',zh:''};}
 function pushWidget(){try{if(!(window.webkit&&webkit.messageHandlers&&webkit.messageHandlers.wjdata))return;const w=widgetWord();webkit.messageHandlers.wjdata.postMessage({due:dueNow(),streak:(STAT.streak||0),word:w.word,zh:w.zh});}catch(e){}}
 
 /* ---------- queue & SM-2 ---------- */
@@ -1213,8 +1235,12 @@ let QUEUE=[],qi=0,sessionTotal=0,lastSnap=null,exSeen=new Set();
    buildQueue()（真正開新的一輪學習，不含待再練子輪）時重置，完成畫面要用
    「本輪不重複卡數」與「本輪作答總次數」，不是全日累計。 */
 let RETRY=[], sessionCardCount=0, sessionAnswers=0, deferredRetry=false;
-function buildQueue(){lastSnap=null;SM_MILE={};BLAST_SESSION++;BLAST_ROUND=0;if(BLAST_ACTIVE)blastAbort();let cards=deckCards();if(CFG.dir==='listen')cards=cards.filter(c=>!c.my);const due=cards.filter(c=>{const s=srsGet(c.id);return s&&s.due<=now();});const fresh=cards.filter(c=>!srsGet(c.id)).slice(0,newLeftToday());let q=[...due,...fresh];for(let i=q.length-1;i>0;i--){const j=Math.floor((Math.sin(i*99.13+q.length)*0.5+0.5)*(i+1));[q[i],q[j]]=[q[j],q[i]];}QUEUE=q.map(c=>({card:c}));qi=0;sessionTotal=QUEUE.length;RETRY=[];sessionCardCount=QUEUE.length;sessionAnswers=0;deferredRetry=false;}
+/* 一輪最多 20 張到期卡：一週沒開回來有 83 張時，先給做得完的一份，剩的完成頁再接。到期早的先出。 */
+const REVIEW_CHUNK=20; let CHUNK_LEFT=0;
+function buildQueue(){lastSnap=null;SM_MILE={};BLAST_SESSION++;BLAST_ROUND=0;if(BLAST_ACTIVE)blastAbort();const cards=modeCards();const dueAll=cards.filter(c=>{const s=srsGet(c.id);return s&&s.due<=now();}).sort((a,b)=>(srsGet(a.id).due||0)-(srsGet(b.id).due||0));const due=dueAll.length>REVIEW_CHUNK?dueAll.slice(0,REVIEW_CHUNK):dueAll;CHUNK_LEFT=dueAll.length-due.length;const fresh=cards.filter(c=>!srsGet(c.id)).slice(0,newLeftToday());const probes=probeCards(cards);const probeIds=new Set(probes.map(c=>c.id));let q=[...due,...probes,...fresh];for(let i=q.length-1;i>0;i--){const j=Math.floor((Math.sin(i*99.13+q.length)*0.5+0.5)*(i+1));[q[i],q[j]]=[q[j],q[i]];}QUEUE=q.map(c=>({card:c,probe:probeIds.has(c.id)}));qi=0;sessionTotal=QUEUE.length;RETRY=[];sessionCardCount=QUEUE.length;sessionAnswers=0;deferredRetry=false;}
 /* 三鍵預覽用的「下次幾天後」，公式跟 schedule() 一致（不寫 due、不存） */
+/* 這個家族的起始狀態：有自己的紀錄用自己的；只有辨識紀錄→當成剛認識第二次（reps=1）；什麼都沒有→新卡。預覽與 schedule 共用（Codex 8-2） */
+function famStartState(id,fam){ fam=fam||curFam(); const own = fam==='recog' ? SRS[id] : (MSRS[fam]||{})[id]; if(own) return JSON.parse(JSON.stringify(own)); if(fam!=='recog' && SRS[id]) return {interval:0,ease:SRS[id].ease||2.5,reps:1,lapses:0}; return {interval:0,ease:2.5,reps:0,lapses:0}; }
 function previewInterval(s,rating){
   const reps=s.reps||0, ease=s.ease||2.5, iv=s.interval||0;
   if(rating===3) return reps===0?1:Math.max((iv||1)+1,Math.round((iv||1)*1.2));
@@ -1222,11 +1248,10 @@ function previewInterval(s,rating){
   if(reps===1) return rating===2?6:3;
   return Math.max(1,Math.round(iv*ease*(rating===2?1.3:1)));
 }
-function schedule(id,rating){
+function schedule(id,rating,fam){ fam=fam||curFam();
   /* ⚠️ 深拷貝不可省。產出模式第一次碰到某張卡時，srsGet 會回退到 SRS 裡的物件；
      若直接就地修改，等於把辨識模式的排程也一起改掉——分開排程就白做了。 */
-  const _cur=srsGet(id);
-  let s=_cur?JSON.parse(JSON.stringify(_cur)):{interval:0,ease:2.5,reps:0,lapses:0};
+  let s=famStartState(id,fam);   // 家族第一次測不繼承辨識的 30 天（Codex 策略審查 2）
   if(rating===0){
     /* 只有「已經記起來過又忘掉」才算一次 lapse。第一次見面答不出來是學習過程，不是弱點。
        同時記住忘掉前的間隔：一張 30 天的熟卡忘一次，下次想起來應該回到 9 天左右，
@@ -1245,7 +1270,7 @@ function schedule(id,rating){
     s.ease=Math.min(3,(s.ease||2.5)+(rating===2?0.15:0)); s.reps=(s.reps||0)+1; s.due=now()+s.interval*DAY;
   }
   s.last=now();   // 最後複習時間：之後校準遺忘曲線用（備份不帶，遺失只影響分析）
-  srsSet(id,s);cloudSave();}
+  srsSet(id,s,fam);cloudSave();}
 
 /* ---------- audio ---------- */
 let AUD=null,curExs=[],curCardId=null,AUTOPLAY_T=null,AUDIO_GEN=0;   // AUDIO_GEN：任何一種播放的世代；離頁／換卡／新播放／爆記開始都 +1，舊回呼一律失效
@@ -1425,9 +1450,9 @@ const DAY0=86400000;
    舊版忽略多出來的格子。這樣新舊版共用同一份 iCloud 備份時，舊版不會拒讀再用只含一張卡的 v3 蓋掉整份（Codex 4-2）。
    到期天改用 floor（不是 round），分鐘才補得回去；舊版讀到的到期最多提早 24 小時，方向是安全的。 */
 function packSrs(s){ const due=s.due||0, d=Math.floor(due/DAY0), m=Math.max(0,Math.round((due-d*DAY0)/60000));
-  return [s.interval|0, Math.round((s.ease||2.5)*10), s.reps|0, s.lapses|0, d, s.lf|0, m, Math.round((s.ease||2.5)*100)]; }
+  return [s.interval|0, Math.round((s.ease||2.5)*10), s.reps|0, s.lapses|0, d, s.lf|0, m, Math.round((s.ease||2.5)*100), s.last?Math.round(s.last/60000):0]; }   // 第 9 格：最後複習（分鐘）——Drill 同日防護要靠它（Codex 8-6）
 function unpackSrs(a,v){ if(v===4) return {interval:a[0],ease:a[1]/100,reps:a[2],lapses:a[3],due:a[4]*60000,...(a[5]?{lf:a[5]}:{})};   // 50/51 兩個 TestFlight 版寫過的 v4
-  const o={interval:a[0],ease:(a[7]!=null&&Number.isFinite(+a[7]))?a[7]/100:a[1]/10,reps:a[2],lapses:a[3],due:a[4]*DAY0+((a[6]!=null&&Number.isFinite(+a[6]))?a[6]*60000:0)}; if(a[5]) o.lf=a[5]; return o; }
+  const o={interval:a[0],ease:(a[7]!=null&&Number.isFinite(+a[7]))?a[7]/100:a[1]/10,reps:a[2],lapses:a[3],due:a[4]*DAY0+((a[6]!=null&&Number.isFinite(+a[6]))?a[6]*60000:0)}; if(a[5]) o.lf=a[5]; if(a[8]) o.last=a[8]*60000; return o; }
 function packState(){
   const srs={};
   for(const k in SRS){ const s=SRS[k]||{};
@@ -1458,7 +1483,7 @@ function unpackState(o){
     /* 舊備份沒有 theme 概念（v1/v2、或還沒拆兩層那版）時，o.cfg 根本沒有 theme 這個 key，
        Object.assign 會保留本機目前的 CFG.theme，變成「還原了別人的舊備份，卻套用本機
        殘留的主題篩選」。先清掉本機的 theme 再套用備份內容，備份自己有 theme 才會贏。 */
-    const base=Object.assign({},CFG); delete base.theme;
+    const base=Object.assign({},CFG); delete base.theme; delete base.exam;   // 舊備份沒有 exam：不能讓本機殘留的目標看起來像還原回來的（Codex 8-13）
     CFG=normalizeCfg(Object.assign(base,o.cfg)); LS.set('ja_cfg',CFG);
   }
   /* v2 欄位。用 if 而不是 ?? 是刻意的：v1 的備份根本沒有這些 key，
@@ -2091,7 +2116,7 @@ function renderHome(){
     el.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); el.click(); } };
   });
   // 目前牌組 chip：首屏一眼看到「在學哪組」，點了捲到牌組區；順便把「已學會」放在這裡（原本佔一整格首屏空間）
-  const curCards=deckCards();
+  const curCards=modeCards();
   const curDone=curCards.filter(c=>isLearned(c.id)).length;
   // 「已學」的判定要講清楚：不是看過，是複習過至少兩次、間隔拉到 4 天以上
   $('#curDeckChip').innerHTML=`<b>${deckLabel()} ▾</b><span title="複習過 2 次以上、間隔拉到 4 天以上才算已學">已學 ${numFmt(curDone)}／${numFmt(curCards.length)}</span>`;
@@ -2125,9 +2150,11 @@ function renderHome(){
       : IS_NATIVE ? `N3 以上的例句解說每天可免費試看 ${TASTE_PER_DAY} 句` : 'N3 以上的例句解說請在 App 內解鎖';
   }
   { const b=$('#kanaMapBtn'); if(b) b.classList.toggle('hidden', CFG.deck!=='KANA'); }
+  { const b=$('#quizBtn'); if(b) b.classList.toggle('hidden', CFG.deck==='KANA' || curEmpty || quizPool().length<8); }
   renderMascot();
   $('#startBtn').disabled=due===0;
-  $('#startBtn').textContent = curEmpty ? '這個篩選沒有字' : (due===0 ? (relearnSoon.length?'等一下再練':'這牌組複習完了 ✓') : `開始學習：${deckLabel()}`);
+  const _rd=reviewDue();
+  $('#startBtn').textContent = curEmpty ? '這個篩選沒有字' : (due===0 ? (relearnSoon.length?'等一下再練':'這牌組複習完了 ✓') : (_rd>REVIEW_CHUNK ? `先複習 ${REVIEW_CHUNK} 張・共 ${_rd} 張待複習` : `開始學習：${deckLabel()}`));
   /* 今天的新字配額用完、但這個牌組還有沒學過的字 → 給一個明確的加碼出口。
      預設擋住是為了控制未來的複習量；硬鎖死只會讓人改去別的 App。 */
   const canMore=newLeftToday()===0 && newCount()>0;
@@ -2289,7 +2316,7 @@ function revealBack(autoRate,extraTop){
     ${exHtml}
     </div></div>`;
   $('#card').onclick=null;
-  const s=srsGet(card.id)||{interval:0,ease:2.5,reps:0};
+  const s=famStartState(card.id,curFam());
   const ih=previewInterval(s,3), ig=previewInterval(s,1), ie=previewInterval(s,2);
   /* 第一次翻面（一生一次）在三鍵上方多講一句在選什麼，之後不再出現，免得每張卡都要看。 */
   const tipShown=LS.get('ja_tip_rate',0);
@@ -2601,24 +2628,26 @@ function rate(r){
      prev 讀的是「該家族自己那一份」，不是回退後的值——否則第一次在產出模式評分後
      按復原，會把辨識的狀態複製進產出，等於憑空造出一筆沒發生過的紀錄。 */
   const _own = _fam==='recog' ? SRS[card.id] : (MSRS[_fam]&&MSRS[_fam][card.id]);
-  lastSnap={qi, id:card.id, fam:_fam,
+  const _probe=QUEUE[qi].probe===true && isProbe(card.id,_fam);   // 只有從抽測名單來的才扣額度（一般到期卡不算，Codex 8-3）
+  lastSnap={qi, id:card.id, fam:_fam, probe:_probe, probeN:STAT.probeN||0, probeDate:STAT.probeDate||null,
     prev: _own?JSON.parse(JSON.stringify(_own)):null,
     today:STAT.today, todayIds:(STAT.todayIds||[]).slice(), streak:STAT.streak, lastDay:STAT.lastDay,
-    days:(DAYS[t]||0), newd:(NEWD[t]||0), day:t,
+    days:(DAYS[t]||0), newd:(NEWD[t]||0), day:t, daily:DAILY[t]?JSON.parse(JSON.stringify(DAILY[t])):null,
     queue:QUEUE.slice(), sessionTotal,
     retry:RETRY.slice(), answers:sessionAnswers, recent:RECENT.slice()};   // recent 在 recentPush 之前快照
   if(BLAST_ACTIVE) lastSnap.blastAttempt=BLAST_ATTEMPT;
   lastSnap.rid=Date.now().toString(36)+':'+card.id;
   if(r>=1 && levelOf(card)!=='KANA') recentPush(card.id);   // 想起來的字才算「學會」；一定要在快照之後，復原才退得回去
   { const m=RATE_META; const now=Date.now();
-    evPush({v:1,ev:'review_attempt',rid:lastSnap.rid,t:now,card:card.id,r,fam:_fam,mode:CFG.dir,isNew:isNewCard,blast:BLAST_ACTIVE?BLAST_ATTEMPT:null,
+    evPush({v:1,ev:'review_attempt',rid:lastSnap.rid,sid:(typeof SESSION_ID!=='undefined'?SESSION_ID:null),t:now,card:card.id,r,fam:_fam,mode:CFG.dir,isNew:isNewCard,probe:_probe,blast:BLAST_ACTIVE?BLAST_ATTEMPT:null,
       firstAnswerCorrect:m.firstOk, firstAnswerMs:(m.shownT&&m.firstT)?m.firstT-m.shownT:null, revealMs:(m.shownT&&m.revealT)?m.revealT-m.shownT:null,
       ratingLatencyMs:m.shownT?now-m.shownT:null, judge:m.judge||'self', hintShown:!!m.hint, revealedBeforeAnswer:(m.firstT&&m.revealT)?m.revealT<m.firstT:null}); }
-  schedule(card.id,r);
+  schedule(card.id,r,_fam);
+  if(_probe) probeBump(1);
   if(!BLAST_ACTIVE) studyMascotReact(r);
   if(isNewCard) bumpNewToday(1);
   STAT.today=(STAT.today||0)+1;
-  dailyBump(CFG.dir, RATE_META.firstOk===true || (RATE_META.firstOk==null && r>=1));
+  dailyBump(CFG.dir, RATE_META.firstOk===true ? true : (RATE_META.firstOk===false ? false : null));   // 自評不算首答（Codex 8-9）
   { if(!Array.isArray(STAT.todayIds)) STAT.todayIds=[]; if(STAT.todayIds.indexOf(card.id)<0){ STAT.todayIds.push(card.id); if(STAT.todayIds.length>3000) STAT.todayIds.splice(0,500); } }
   if(STAT.lastDay!==t){STAT.streak=(STAT.streak||0)+1;STAT.lastDay=t;}
   DAYS[t]=(DAYS[t]||0)+1; LS.set('ja_days',DAYS);
@@ -2633,13 +2662,14 @@ function rate(r){
 function undo(){
   if(BLAST_ACTIVE) blastAbort('undo');
   if(!lastSnap)return;
-  if(lastSnap.rid){ evPush({v:1,ev:'review_undo',rid:lastSnap.rid,t:Date.now(),card:lastSnap.id,fam:lastSnap.fam}); }
+  if(lastSnap.rid){ evPush({v:1,ev:'review_undo',rid:lastSnap.rid,sid:(typeof SESSION_ID!=='undefined'?SESSION_ID:null),t:Date.now(),card:lastSnap.id,fam:lastSnap.fam}); }
   if(lastSnap.blastAttempt){ blastUndo(lastSnap.blastAttempt); }
   const s=lastSnap;
   if(s.prev) srsSet(s.id, s.prev, s.fam); else srsDrop(s.id, s.fam);
-  STAT.today=s.today; if(s.todayIds) STAT.todayIds=s.todayIds.slice(); STAT.streak=s.streak; STAT.lastDay=s.lastDay; STAT.todayDate=s.day; LS.set('ja_stat',STAT);
+  STAT.today=s.today; if(s.probe){ STAT.probeN=s.probeN; STAT.probeDate=s.probeDate; } if(s.todayIds) STAT.todayIds=s.todayIds.slice(); STAT.streak=s.streak; STAT.lastDay=s.lastDay; STAT.todayDate=s.day; LS.set('ja_stat',STAT);
   rollDay();   // 跨午夜後 undo：先退回評分那天的統計，再讓換日邏輯決定今天是不是新的一天（Codex 4-1）
   DAYS[s.day]=s.days; if(!DAYS[s.day]) delete DAYS[s.day]; LS.set('ja_days',DAYS);
+  if(s.daily) DAILY[s.day]=s.daily; else delete DAILY[s.day]; LS.set('ja_daily',DAILY);   // 每日彙總跟著退（Codex 8-10）
   NEWD[s.day]=s.newd; if(!NEWD[s.day]) delete NEWD[s.day]; LS.set('ja_newd',NEWD);
   QUEUE.length=0; QUEUE.push(...s.queue);   // 還原整個佇列，不是只截長度
   qi=s.qi; sessionTotal=s.sessionTotal;
@@ -2777,7 +2807,7 @@ const STORE_REVIEW_URL='https://apps.apple.com/tw/app/id6784779535?action=write-
 function usageSummary(){
   try{
     const days=Object.keys(DAYS||{}).length, total=Object.values(DAYS||{}).reduce((a,b)=>a+b,0);
-    const modes={}; let okN=0, aN=0; Object.values(DAILY||{}).forEach(d=>{ aN+=d.a||0; okN+=d.ok||0; Object.entries(d.m||{}).forEach(([k,v])=>{ modes[k]=(modes[k]||0)+v; }); });
+    const modes={}; let okN=0, aN=0; Object.values(DAILY||{}).forEach(d=>{ aN+=d.j||0; okN+=d.ok||0; Object.entries(d.m||{}).forEach(([k,v])=>{ modes[k]=(modes[k]||0)+v; }); });   // 首答率分母＝有客觀判定的作答
     const kana=KANA_ROWS_H.flat().filter(Boolean).filter(g=>kanaMastery(g)>=2).length;
     const bl=LS.get('ja_blast',{});
     const md={n2z:'日→中',z2n:'中→日',type:'打字',sentence:'造句',listen:'聽力'};
@@ -2859,18 +2889,22 @@ window.onNotifyStatus=function(o){
 function examCfg(){ const e=CFG.exam||{}; return (e.lv&&e.date)?{lv:e.lv,date:e.date}:null; }
 function examLine(){
   const e=examCfg(); if(!e) return '';
-  const days=Math.ceil((new Date(e.date+'T23:59:59')-Date.now())/DAY); if(days<0) return `${e.lv} 考試已過，設個新目標吧`;
+  const [Y,M,D]=e.date.split('-').map(Number); const t0=new Date(); t0.setHours(0,0,0,0); const days=Math.round((new Date(Y,M-1,D)-t0)/DAY); if(days<0) return `${e.lv} 考試已過，設個新目標吧`;   // 本地日曆日差（Codex 8-7）
   const pool=VOCAB.filter(c=>!c.my&&levelOf(c)===e.lv); const learned=pool.filter(c=>isLearned(c.id)).length;
-  const t=new Date(); let sum=0,n=0; for(let i=1;i<=14;i++){ const d=new Date(t); d.setDate(t.getDate()-i); const k=d.toISOString().slice(0,10); if(NEWD[k]!=null){ sum+=NEWD[k]; n++; } }
+  const t=new Date(); const firstKey=Object.keys(NEWD||{}).sort()[0]; let sum=0,n=0;
+  for(let i=1;i<=14;i++){ const d=new Date(t); d.setDate(t.getDate()-i); const k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); if(firstKey&&k>=firstKey){ sum+=(NEWD[k]||0); n++; } }   // 觀察期內的零學習日也算進分母（Codex 8-8）
   const pace = n>=3 ? sum/n : (CFG.newPerDay??15);
   const proj=Math.min(pool.length, Math.round(learned + pace*days*0.7));   // 新字要再複習兩次才算學會，打七折
   return days===0 ? `${e.lv} 就是今天，加油` : `${e.lv} 還有 ${days} 天・照現在速度考前學到 ${numFmt(proj)}／${numFmt(pool.length)}`;
 }
-function renderExamRow(){
+function renderExamRow(keepForm){
   const lv=$('#examLv'), dt=$('#examDate'), note=$('#examNote'); if(!lv||!dt) return; const e=CFG.exam||{};
-  lv.value=e.lv||''; dt.value=e.date||''; const line=examLine(); if(note){ note.textContent=line||'設了之後首頁會倒數，並估算考前能學到幾張'; }
+  if(!keepForm){ lv.value=e.lv||''; dt.value=e.date||''; }   // 存檔後不要把填到一半的表單清掉（Codex 8-1）
+  const line=examLine(); if(note){ note.textContent=line||(lv.value&&!dt.value?'再選一個考試日期':'設了之後首頁會倒數，並估算考前能學到幾張'); }
 }
-function saveExam(){ const lv=$('#examLv').value, date=$('#examDate').value; CFG.exam=(lv&&date)?{lv,date}:null; LS.set('ja_cfg',CFG); renderExamRow(); }
+function saveExam(){ const lv=$('#examLv').value, date=$('#examDate').value;
+  if(lv&&date) CFG.exam={lv,date}; else if(!lv) CFG.exam=null; else { renderExamRow(true); return; }   // 級別選了、日期還沒：等，不清
+  LS.set('ja_cfg',CFG); renderExamRow(true); renderMascot(); cloudSave(); }
 function renderRemindRow(){
   const row=$('#remindRow'); if(!row) return; if(!IS_NATIVE){ row.classList.add('hidden'); return; }
   row.classList.remove('hidden'); const r=remindCfg();
@@ -2911,6 +2945,7 @@ function finishStudy(){$('#study').classList.add('hidden');$('#done').classList.
   $('#doneTomorrow').textContent = dueLeftToday>0
     ? `今天還有 ${dueLeftToday} 張沒清${dueTomorrow>0?`・明天再加 ${dueTomorrow} 張`:''}`
     : (dueTomorrow>0 ? `明天有 ${dueTomorrow} 張等你複習` : '明天沒有要複習的，來學新字吧');
+  { const left=dueNow(); const m=$('#doneMore'); if(m){ m.classList.toggle('hidden', !(left>0 && !deferredRetry && RETRY.length===0)); m.textContent=`再來一輪（還有 ${left} 張）`; } }
   pushWidget();
   if(sessionAnswers>=5 && !deferredRetry && RETRY.length===0 && $('#remindAsk').classList.contains('hidden')) maybeAskRating();   // 有待再練或剛在問提醒時不打擾（Codex 產品審查 4）
 }
@@ -3151,7 +3186,7 @@ function recentPush(id){ RECENT=[id,...RECENT.filter(x=>x!==id)].slice(0,8); LS.
 /* 問候依時段與狀態換，不是每次都同一句。每句都附中文，順便多看一次日文。 */
 /* 泡泡預設講「現在的學習進度」，不再是問候語（QQ：預設要表達目前進度）。表情仍依時段／狀態。 */
 function mascotProgress(){
-  const h=new Date().getHours(), cards=deckCards(), due=dueNow(), st=STAT.streak||0;
+  const h=new Date().getHours(), cards=modeCards(), due=dueNow(), st=STAT.streak||0;
   const ids=new Set(STAT.todayIds||[]); const done=cards.filter(c=>ids.has(c.id)).length;
     const gap = STAT.lastDay ? Math.round((new Date(todayStr())-new Date(STAT.lastDay))/DAY) : 0;
   const newN=Math.min(newLeftToday(),newCount()), reviewN=Math.max(0,due-newN);
@@ -3246,7 +3281,7 @@ function renderKanaMap(){
   $('#kmProg').textContent=`${learned} / ${total} 會了`;
   const cur=rows[unl-1].filter(Boolean).join('');
   /* 按鈕要說實話：到期的複習優先、再發目前這一行的新字；什麼都沒有就告訴他下次何時 */
-  { const cards=deckCards(); const due=cards.filter(c=>{const x=srsGet(c.id);return x&&x.due<=now();}).length;
+  { const cards=modeCards(); const due=cards.filter(c=>{const x=srsGet(c.id);return x&&x.due<=now();}).length + probeCards(cards).length;
     const fresh=Math.min(newLeftToday(), cards.filter(c=>!srsGet(c.id)).length);
     const b=$('#kmStudy'); b.disabled=false;
     if(due+fresh===0){ const nxt=cards.map(c=>srsGet(c.id)).filter(Boolean).map(x=>x.due).sort((a,b)=>a-b)[0];
@@ -3314,6 +3349,43 @@ $('#kmRomaji').onclick=()=>{ KM_ROMAJI=!KM_ROMAJI; renderKanaMap(); };
    每個假名在一場裡只有**第一次**作答計入排程（對＝想了一下、錯＝沒想起來），
    不然連刷十場同一個字就能衝到「熟了」。答題也算進今日張數與熱力圖。 */
 let DRILL=null, DRILL_T=null;
+/* ═══ 單字快問快答（路線圖 2.4）：Drill 的單字版 ═══ */
+let VQ=null;
+function quizPool(){ const cards=deckCards().filter(c=>!c.my); const known=cards.filter(c=>srsGet(c.id,'recog')); return (known.length>=8?known:cards).slice(); }
+function quizDistractors(c,pool,n){ const lv=levelOf(c); const same=pool.filter(x=>x.id!==c.id&&levelOf(x)===lv&&zhBase(x.zh)!==zhBase(c.zh)&&x.nl!==c.nl); const pos=same.filter(x=>x.pos===c.pos);
+  const src=pos.length>=n?pos:(same.length>=n?same:pool.filter(x=>x.id!==c.id&&x.nl!==c.nl)); return src.slice().sort(()=>Math.random()-.5).slice(0,n); }
+function quizStart(){ const pool=quizPool(); if(pool.length<8) return; const bag=pool.slice().sort(()=>Math.random()-.5);
+  const due=bag.filter(c=>{ const x=srsGet(c.id,'recog'); return x&&x.due<=now(); }); const rest=bag.filter(c=>!due.includes(c));
+  const picks=[...due,...rest].slice(0,10);
+  const qs=picks.map((c,i)=>{ const kind=(HAS_AUDIO&&i%3===2)?'listen':(i%2?'z2w':'w2z'); const opts=[c,...quizDistractors(c,pool,3)].sort(()=>Math.random()-.5); return {c,kind,opts}; });
+  VQ={qs,i:0,ok:0,answered:0,seen:new Set(),t0:Date.now(),lock:false,miss:[]};
+  $('#vquiz').classList.remove('hidden'); quizQ();
+}
+function quizQ(){ const d=VQ; if(!d) return; const q=d.qs[d.i], c=q.c;
+  const prompt = q.kind==='w2z' ? `<div class="big" style="font-size:44px">${esc(c.nl)}</div><div class="ask">是什麼意思？</div>`
+    : q.kind==='z2w' ? `<div class="big" style="font-size:32px">${esc(zhBase(c.zh))}</div><div class="ask">日文是哪一個？</div>`
+    : `<div class="big"><button class="aud lg" onclick="play('w',${c.id})">${I_SPK}</button></div><div class="ask">聽到的是哪一個？</div>`;
+  const optHtml=q.opts.map((o,k)=>`<button class="dopt" style="font-size:${q.kind==='w2z'?17:21}px;padding:6px 8px" data-k="${k}" onclick="quizAnswer(${k})">${esc(q.kind==='w2z'?zhBase(o.zh):o.nl)}</button>`).join('');
+  $('#vqBox').innerHTML=`<div class="dtop"><span>第 ${d.i+1} / ${d.qs.length} 題</span><span>答對 ${d.ok}</span></div><div class="dq">${prompt}</div><div class="dopts">${optHtml}</div><button class="subtoggle" style="margin-top:14px" onclick="quizEnd(true)">先結束</button>`;
+  d.lock=false;
+  if(q.kind==='listen'&&HAS_AUDIO){ const at=d.i; setTimeout(()=>{ if(VQ===d&&d.i===at&&!$('#vquiz').classList.contains('hidden')) play('w',c.id); },150); }   // 聽力題：聲音就是題目
+}
+function quizAnswer(k){ const d=VQ; if(!d||d.lock) return; d.lock=true; const q=d.qs[d.i]; const ok=q.opts[k].id===q.c.id;
+  document.querySelectorAll('#vqBox .dopt').forEach((b,i)=>{ const isAns=q.opts[i].id===q.c.id; b.classList.add(i===k?(ok?'ok':'no'):(isAns?'ok':'dim')); b.disabled=true; });
+  if(ok) d.ok++; else d.miss.push(q.c); d.answered++;
+  if(!d.seen.has(q.c.id)){ d.seen.add(q.c.id); const fam = q.kind==='w2z'?'recog':(q.kind==='z2w'?'prod':'listen'); const own = fam==='recog'?SRS[q.c.id]:(MSRS[fam]||{})[q.c.id];
+    const sameDay = own&&own.last&&new Date(own.last).toDateString()===new Date().toDateString();
+    if(!sameDay){ rollDay(); const isNew=!srsGet(q.c.id,'recog'); schedule(q.c.id, ok?1:0, fam); if(isNew&&fam==='recog') bumpNewToday(1);
+      STAT.today=(STAT.today||0)+1; dailyBump('quiz_'+fam, ok); const t=todayStr(); if(STAT.lastDay!==t){STAT.streak=(STAT.streak||0)+1;STAT.lastDay=t;} DAYS[t]=(DAYS[t]||0)+1; LS.set('ja_days',DAYS);
+      if(!Array.isArray(STAT.todayIds)) STAT.todayIds=[]; if(STAT.todayIds.indexOf(q.c.id)<0) STAT.todayIds.push(q.c.id); LS.set('ja_stat',STAT); } }
+  if(HAS_AUDIO&&q.kind!=='listen') play('w',q.c.id);   // 答完才聽
+  setTimeout(()=>{ if(VQ!==d) return; d.i++; if(d.i>=d.qs.length) quizEnd(false); else quizQ(); }, ok?600:1200);
+}
+function quizEnd(early){ const d=VQ; if(!d) return; const n=early?d.answered:d.qs.length, secs=Math.round((Date.now()-d.t0)/1000); const miss=[...new Map(d.miss.map(c=>[c.id,c])).values()];
+  $('#vqBox').innerHTML=`<div class="dres"><div class="score">${d.ok} / ${n}</div><div class="sub">${secs} 秒${early?'・提早結束':''}</div>${miss.length?`<div class="sub" style="margin-top:12px">這幾個再看一眼</div><div class="dmiss">${miss.map(c=>`<span onclick="showWordPop(${c.id})">${esc(c.nl)}</span>`).join('')}</div>`:'<div class="sub" style="margin-top:12px">全對。</div>'}<div class="ksbtns" style="margin-top:16px"><button onclick="quizStart()">再來 10 題</button><button onclick="quizClose()">關閉</button></div></div>`;
+  evPush({v:1,ev:'quiz_end',t:Date.now(),ok:d.ok,n,early:!!early,deck:CFG.deck}); VQ=null; }
+function quizClose(){ VQ=null; stopAllAudio(); $('#vquiz').classList.add('hidden'); renderHome(); }
+$('#quizBtn').onclick=quizStart; $('#vqClose').onclick=quizClose;
 function drillPool(){ const sc=CFG.kanaScript||'h'; return [...kanaUnlockedSet(sc)]; }
 function drillStart(){
   const pool=drillPool(); if(pool.length<2) return;
@@ -3340,18 +3412,20 @@ function drillQ(){
     <button class="subtoggle" style="margin-top:14px" onclick="drillEnd(true)">先結束</button>`;
   d.lock=false;
   if(DRILL_T){ clearTimeout(DRILL_T); DRILL_T=null; }
-  if(q.dir==='k2r' && HAS_AUDIO){ const c=kanaCard(q.g); const at=d.i; if(c) DRILL_T=setTimeout(()=>{ DRILL_T=null; if(DRILL!==d||d.i!==at||$('#kanamap').classList.contains('hidden')) return; play('w',c.id); },150); }   // 離開後不能突然出聲（Codex 3-10）
+  /* 不再在作答前播讀音（看假名選羅馬字時先播＝直接給答案）；改成作答後才播（Codex 策略審查） */
 }
 function drillAnswer(k){
   const d=DRILL; if(!d||d.lock) return; d.lock=true; const q=d.qs[d.i]; const ok=q.opts[k]===q.g;
   document.querySelectorAll('#drillBox .dopt').forEach((b,i)=>{ const isAns=q.opts[i]===q.g; b.classList.add(i===k?(ok?'ok':'no'):(isAns?'ok':'dim')); b.disabled=true; });
   if(ok) d.ok++; else d.miss.push(q.g);
-  d.answered=(d.answered||0)+1;
-  if(!d.seen.has(q.g)){ d.seen.add(q.g); const c=kanaCard(q.g); if(c){ rollDay(); const isNew=!srsGet(c.id); schedule(c.id, ok?1:0); const t=todayStr();
+  d.answered=(d.answered||0)+1; dailyBump('drill', ok);
+  if(!d.seen.has(q.g)){ d.seen.add(q.g); const c=kanaCard(q.g); if(c){ rollDay(); const own=SRS[c.id]; const sameDay = own&&own.last && new Date(own.last).toDateString()===new Date().toDateString();
+      if(sameDay){ /* 今天已經評過這個假名：只算練習，不再拉長間隔（同日重刷不算長期記住） */ }
+      else { const isNew=!srsGet(c.id,'recog'); schedule(c.id, ok?1:0, 'recog'); const t=todayStr();
       if(isNew) bumpNewToday(1);   // Drill 學到的新假名也吃當日新字配額、也算今日進度（Codex 3-8）
       if(!Array.isArray(STAT.todayIds)) STAT.todayIds=[]; if(STAT.todayIds.indexOf(c.id)<0) STAT.todayIds.push(c.id);
-      STAT.today=(STAT.today||0)+1; if(STAT.lastDay!==t){STAT.streak=(STAT.streak||0)+1;STAT.lastDay=t;} DAYS[t]=(DAYS[t]||0)+1; LS.set('ja_days',DAYS); LS.set('ja_stat',STAT); } }
-  if(q.dir==='r2k' && HAS_AUDIO){ const c=kanaCard(q.g); if(c) play('w',c.id); }
+      STAT.today=(STAT.today||0)+1; if(STAT.lastDay!==t){STAT.streak=(STAT.streak||0)+1;STAT.lastDay=t;} DAYS[t]=(DAYS[t]||0)+1; LS.set('ja_days',DAYS); LS.set('ja_stat',STAT); } } }
+  if(HAS_AUDIO){ const c=kanaCard(q.g); if(c) play('w',c.id); }   // 兩種題型都是答完才聽
   setTimeout(()=>{ if(DRILL!==d) return; d.i++; if(d.i>=d.qs.length) drillEnd(false); else drillQ(); }, ok?550:1100);
 }
 function drillEnd(early){
@@ -3431,6 +3505,7 @@ $('#startBtn').onclick=startStudy;
 $('#moreNewBtn').onclick=()=>{ grantExtraNew(CFG.newPerDay||15); renderHome(); startStudy(); };
 $('#quitBtn').onclick=()=>{ if(SESSION_ID){ evPush({v:1,ev:'session_quit',t:Date.now(),sid:SESSION_ID,answers:sessionAnswers,at:qi,of:sessionTotal}); SESSION_ID=null; } lastSnap=null;renderHome();};
 $('#doneBack').onclick=()=>{lastSnap=null;renderHome();};
+$('#doneMore').onclick=()=>{ lastSnap=null; $('#done').classList.add('hidden'); startStudy(); };
 $('#myExBtn').onclick=showSentences;
 $('#sentBack').onclick=()=>{renderHome();};
 $('#sentPlayAll').onclick=playSentList;
