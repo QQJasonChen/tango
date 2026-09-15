@@ -6,11 +6,11 @@
 <title>単語ノート · 日文背單字</title>
 <style>
 :root{
-  --navy:#16273f; --navy2:#254470; --orange:#d0463b; --bg:#faf7f2; --card:#fff;
-  --text:#1c2331; --muted:#8b94a3; --line:#ebe5dc;
-  --green:#357a51; --amber:#c99a2e; --red:#a2544b; --blue:#2f6fa8;
-  --gold:#e8b04b; --shu-d:#b93a30;
-  --shadow:0 2px 10px rgba(28,35,49,.055),0 12px 34px rgba(28,35,49,.05);
+  --navy:#16273f; --navy2:#254470; --orange:#c43f35; --bg:#faf7f2; --card:#fff; --surface:#fffdfa; --surface2:#f3efe8; --orange-soft:#f7eae5; --blue-soft:#e8edf2; --trace:#d8dce1;
+  --text:#1c2331; --muted:#686f7b; --line:#e5ded4;
+  --green:#357a51; --amber:#c99a2e; --red:#9b514b; --blue:#2c4a74;
+  --gold:#e8b04b; --shu-d:#ae352d;
+  --shadow:0 3px 12px rgba(22,39,63,.05);
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html{-webkit-text-size-adjust:100%}
@@ -41,7 +41,7 @@ body{font-family:-apple-system,'Segoe UI','Noto Sans TC',sans-serif;background:v
    看不到「這是不是我還沒學過的東西」。改成一句話講清楚今天要做什麼＋一行細節。 */
 .hero{background:linear-gradient(135deg,#0a1628,#14213d,#1f4178);color:#fff;border-radius:22px;padding:20px 22px;box-shadow:var(--shadow)}
 .hero .due{font-size:23px;font-weight:800;line-height:1.35}
-.hero .sub{color:#cdd9ec;font-size:13px;margin-top:8px}
+.hero .sub{color:#c9d3e3;font-size:13px;margin-top:8px}
 .hprog{height:5px;border-radius:99px;background:rgba(255,255,255,.14);margin-top:14px;overflow:hidden}
 .hprog i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--orange),#e8635a);transition:width .6s cubic-bezier(.2,.8,.2,1)}
 .scopeline{text-align:center;color:var(--muted);font-size:12.5px;font-weight:700;margin:-6px 0 0}
@@ -146,12 +146,12 @@ body{font-family:-apple-system,'Segoe UI','Noto Sans TC',sans-serif;background:v
 .sbubble{flex:1;min-width:0;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:6px 11px;font-size:13.5px;line-height:1.35;color:var(--navy);position:relative;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sbubble::before{content:'';position:absolute;left:-7px;top:50%;margin-top:-6px;border:6px solid transparent;border-right-color:#fff;border-left:0}
 .sbubble small{color:var(--muted);font-size:12px;margin-left:6px}
-.pbar i{display:block;height:100%;background:linear-gradient(90deg,var(--orange),var(--gold));border-radius:99px;transition:width .25s}
+.pbar i{display:block;height:100%;background:linear-gradient(90deg,var(--orange),#e8635a);border-radius:99px;transition:width .25s}
 .cardstage{flex:1;display:flex;align-items:center;justify-content:center;min-height:330px}
 .card{width:100%;background:var(--card);border-radius:24px;box-shadow:var(--shadow);padding:30px 24px;
   cursor:pointer;transition:transform .12s;position:relative;min-height:300px;display:flex;flex-direction:column;justify-content:center}
 .card:active{transform:scale(.99)}
-.cefr{position:absolute;top:16px;right:16px;font-size:11px;font-weight:800;color:var(--blue);background:#e7f0fb;padding:3px 9px;border-radius:99px}
+.cefr{position:absolute;top:16px;right:16px;font-size:11px;font-weight:800;color:var(--blue);background:#eceef3;padding:3px 9px;border-radius:99px}
 .pos{position:absolute;top:16px;left:16px;font-size:11px;font-weight:700;color:var(--muted);background:var(--bg);padding:3px 9px;border-radius:99px}
 .cardimg{display:block;width:150px;height:150px;object-fit:contain;margin:0 auto 12px;border-radius:16px;background:#fff}
 /* let the study text be selectable/copyable (UI/buttons stay non-selectable) */
@@ -164,14 +164,14 @@ body{font-family:-apple-system,'Segoe UI','Noto Sans TC',sans-serif;background:v
 .reveal-zone{margin-top:18px;border-top:1px dashed var(--line);padding-top:16px}
 /* 例句點字 */
 .exnl .lw{border-bottom:1.5px dotted var(--blue);cursor:pointer;padding-bottom:.5px}
-.exnl .lw:active{background:#eef4fb;border-radius:3px}
+.exnl .lw:active{background:#eceef3;border-radius:3px}
 #wordpop .word{font-size:30px;text-align:left}
 #wordpop .wpread{color:var(--muted);font-size:14px;margin-top:4px}
 #wordpop .wpzh{font-size:20px;font-weight:700;color:var(--navy);margin-top:8px}
 .grambody{max-height:58vh;overflow:auto;text-align:left;margin-top:8px;-webkit-overflow-scrolling:touch}
 .gtrans{font-size:17px;font-weight:700;color:var(--navy);margin-bottom:6px;line-height:1.5}
 .gsec{font-size:12px;font-weight:800;color:var(--orange);margin:16px 0 7px;letter-spacing:.04em}
-.gw{border:1px solid var(--line);border-radius:11px;padding:9px 11px;margin-bottom:7px;background:#fafbfd}
+.gw{border:1px solid var(--line);border-radius:11px;padding:9px 11px;margin-bottom:7px;background:#f6f7f9}
 .gwtop{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
 .gwtop b{font-size:17px;color:var(--navy)}
 .gbase{font-size:12px;color:var(--muted)}
@@ -179,7 +179,7 @@ body{font-family:-apple-system,'Segoe UI','Noto Sans TC',sans-serif;background:v
 .gwzh{font-size:14px;font-weight:700;margin-top:2px}
 .gnote{font-size:13px;color:var(--muted);margin-top:3px;line-height:1.55}
 .gstruct{font-size:14px;line-height:1.6;color:#333}
-.gexplain{font-size:14.5px;line-height:1.85;color:#2b2b2b;background:#faf7f2;border-left:3px solid var(--orange);padding:11px 13px;border-radius:8px;white-space:pre-wrap}
+.gexplain{font-size:14.5px;line-height:1.85;color:var(--text);background:#faf7f2;border-left:3px solid var(--orange);padding:11px 13px;border-radius:8px;white-space:pre-wrap}
 .gpoints{margin:0;padding-left:18px}
 .gpoints li{font-size:14px;line-height:1.6;margin-bottom:4px}
 .gtaste{display:flex;align-items:center;gap:10px;margin:0 0 12px;padding:10px 12px;border-radius:12px;background:#fff8ee;border:1.5px solid var(--orange);font-size:13px;line-height:1.5}
@@ -189,7 +189,7 @@ body{font-family:-apple-system,'Segoe UI','Noto Sans TC',sans-serif;background:v
 .gquote{margin:0 0 14px;padding:11px 13px;border-radius:12px;background:#faf7f2;border:1px solid #e8e0d2}
 .gquote .pj{font-size:16px;font-weight:700;line-height:1.7;color:var(--navy)}
 .gquote .pz{font-size:14px;color:var(--muted);margin-top:4px;line-height:1.5}
-.gcollapse{font-size:16px;line-height:1.7;color:#2b2b2b}
+.gcollapse{font-size:16px;line-height:1.7;color:var(--text)}
 .gcollapse.clamp{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .gexpandbtn{display:block;background:none;border:none;color:var(--blue);font-weight:700;font-size:13px;padding:3px 0 2px;cursor:pointer}
 .gtasteline{font-size:13px;color:var(--muted);margin:2px 0 0}
@@ -202,7 +202,7 @@ body{font-family:-apple-system,'Segoe UI','Noto Sans TC',sans-serif;background:v
 .ex{display:flex;align-items:center;gap:12px;background:var(--bg);border-radius:14px;padding:11px 14px;margin-top:10px;font-size:15px}
 .ex .extext{flex:1;min-width:0}
 .exaud.gramlink{font-size:17px}.exaud.gramlink.locked{opacity:.55}
-.exaud{flex-shrink:0;width:38px;height:38px;border:none;background:#eef4fb;color:var(--blue);border-radius:50%;font-size:16px;cursor:pointer}
+.exaud{flex-shrink:0;width:38px;height:38px;border:none;background:#eceef3;color:var(--blue);border-radius:50%;font-size:16px;cursor:pointer}
 .exaud:active{transform:scale(.9)}
 .exaud,.wordaud,.aud,.baud,.exbk,.exgram{display:inline-flex;align-items:center;justify-content:center}
 .exbk{flex-shrink:0;width:34px;height:34px;border:none;background:transparent;border-radius:50%;font-size:16px;cursor:pointer;filter:grayscale(1);opacity:.45}
@@ -217,11 +217,11 @@ body{font-family:-apple-system,'Segoe UI','Noto Sans TC',sans-serif;background:v
 .exopbtn:active{transform:scale(.97)}
 .exopbtn.gram{background:#fff8ee;border-color:var(--orange);color:var(--orange)}
 .exopbtn.gram.locked{background:#fff;border-color:#e8e0d2;color:var(--muted)}
-.exopbtn.exsnd{background:#eef4fb;border-color:#d5e3f5;color:var(--blue)}
+.exopbtn.exsnd{background:#eceef3;border-color:#cfd6e0;color:var(--blue)}
 .exopbtn.bk.on{background:#fff4e6;border-color:var(--orange);color:var(--orange)}
 .gramtip{font-size:12px;color:var(--orange);margin-top:5px;line-height:1.5}
 .wordrow{display:flex;align-items:center;justify-content:center;gap:12px}
-.wordaud{flex-shrink:0;width:42px;height:42px;border:none;background:#eef4fb;color:var(--blue);border-radius:50%;font-size:18px;cursor:pointer}
+.wordaud{flex-shrink:0;width:42px;height:42px;border:none;background:#eceef3;color:var(--blue);border-radius:50%;font-size:18px;cursor:pointer}
 .wordaud:active{transform:scale(.9)}
 .ex .exnl{display:block;color:var(--navy);font-weight:600}
 /* 振假名：行高留空間免得上下擠、rt 小一號且淡一點，不要搶走漢字的視覺重量 */
@@ -240,12 +240,12 @@ body{font-family:-apple-system,'Segoe UI','Noto Sans TC',sans-serif;background:v
   background:var(--bg);color:var(--blue);font-weight:700;font-size:12.5px;min-height:38px;
   border-radius:11px;padding:0 4px;cursor:pointer;white-space:nowrap}
 .extool.tog{color:var(--muted)}
-.extool.tog.on{background:#eef4fb;color:var(--blue);border-color:#d5e3f3}
+.extool.tog.on{background:#eceef3;color:var(--blue);border-color:#cfd6e0}
 .extool:active{transform:scale(.97)}
 .extool svg{flex:none}
 .exmore{display:flex;align-items:center;justify-content:center;gap:6px}
 .ex .exzh{color:var(--muted);font-size:13px;display:block;margin-top:3px}
-.aud{display:inline-flex;align-items:center;justify-content:center;width:46px;height:46px;border:none;background:#eef4fb;color:var(--blue);border-radius:50%;font-size:20px;cursor:pointer;margin:14px auto 0}
+.aud{display:inline-flex;align-items:center;justify-content:center;width:46px;height:46px;border:none;background:#eceef3;color:var(--blue);border-radius:50%;font-size:20px;cursor:pointer;margin:14px auto 0}
 .aud:active{transform:scale(.9)} .aud.lg{width:54px;height:54px;font-size:24px}
 .typebox{margin-top:18px}
 .typebox input{width:100%;border:2px solid var(--line);border-radius:13px;padding:14px;font-size:20px;text-align:center;color:var(--navy);font-weight:700;outline:none}
@@ -255,7 +255,7 @@ body{font-family:-apple-system,'Segoe UI','Noto Sans TC',sans-serif;background:v
 .answer{text-align:center;margin-top:10px;font-size:14px}
 .answer .good{color:var(--green);font-weight:800}
 .answer .bad{color:var(--red);font-weight:800}
-.answernote{text-align:center;margin-top:6px;font-size:13px;color:var(--blue);background:#e7f0fb;border-radius:10px;padding:6px 10px}
+.answernote{text-align:center;margin-top:6px;font-size:13px;color:var(--blue);background:#eceef3;border-radius:10px;padding:6px 10px}
 .answeryours{text-align:center;margin-top:6px;font-size:13px;color:var(--muted)}
 .answeryours .dw.ok{color:var(--green)}
 .answeryours .dw.no{color:var(--red);font-weight:700;text-decoration:underline wavy}
@@ -275,7 +275,7 @@ body{font-family:-apple-system,'Segoe UI','Noto Sans TC',sans-serif;background:v
   border:3px solid currentColor;background:var(--card);transform:scale(.8);
   transition:opacity .12s,transform .12s;z-index:5}
 .swipehint .sh-emo{font-size:28px;line-height:1}
-#shLeft{left:14px;color:#ef4444;rotate:-11deg}
+#shLeft{left:14px;color:var(--orange);rotate:-11deg}
 #shRight{right:14px;color:#16a34a;rotate:11deg}
 .swipehint.on{opacity:1;transform:scale(1)}
 @keyframes cardpop{from{transform:scale(.94) translateY(10px);opacity:0}to{transform:none;opacity:1}}
@@ -313,14 +313,14 @@ body{font-family:-apple-system,'Segoe UI','Noto Sans TC',sans-serif;background:v
 .brow{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:var(--shadow);cursor:pointer}
 .browhead{display:flex;align-items:center;gap:10px}
 .bword{font-size:18px;font-weight:800;color:var(--navy);flex:1;min-width:0;word-break:break-word}
-.bcefr{font-size:10px;font-weight:800;color:var(--blue);background:#e7f0fb;padding:2px 7px;border-radius:99px;margin-left:8px;vertical-align:2px}
+.bcefr{font-size:10px;font-weight:800;color:var(--blue);background:#eceef3;padding:2px 7px;border-radius:99px;margin-left:8px;vertical-align:2px}
 .bzh{font-size:14px;color:var(--text);font-weight:600;flex-shrink:0;text-align:right}
 body.hidezh #study .exzh{display:none!important}
 .czsent{font-size:23px;line-height:1.55;color:var(--navy);font-weight:600;text-align:center;padding:22px 6px 6px}
 .czblank{display:inline-block;min-width:76px;border-bottom:3px solid var(--orange);vertical-align:-4px}
 .czhint{text-align:center;color:var(--muted);font-size:14px;margin-top:8px}
 .czans{text-align:center;color:var(--muted);font-size:16px;margin-top:8px}
-.baud{flex-shrink:0;width:36px;height:36px;border:none;background:#eef4fb;color:var(--blue);border-radius:50%;font-size:15px;cursor:pointer}
+.baud{flex-shrink:0;width:36px;height:36px;border:none;background:#eceef3;color:var(--blue);border-radius:50%;font-size:15px;cursor:pointer}
 .baud:active{transform:scale(.9)}
 .bextra{font-size:12px;color:var(--muted);margin-top:4px;letter-spacing:.2px}
 .bdetail{margin-top:11px;border-top:1px dashed var(--line);padding-top:11px}
@@ -331,14 +331,14 @@ body.hidezh #study .exzh{display:none!important}
 .pw{position:fixed;inset:0;background:rgba(10,18,30,.55);display:flex;align-items:flex-end;justify-content:center;z-index:50}
 /* 首次引導 */
 .obgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:9px;margin:14px 0 4px}
-.obopt{display:flex;flex-direction:column;align-items:center;gap:2px;padding:13px 8px;border:1.5px solid #dfe6ef;background:#fff;border-radius:13px;cursor:pointer;transition:.12s}
+.obopt{display:flex;flex-direction:column;align-items:center;gap:2px;padding:13px 8px;border:1.5px solid #cfd6e0;background:#fff;border-radius:13px;cursor:pointer;transition:.12s}
 .obopt b{font-size:16px;color:var(--navy)}
 .obopt span{font-size:11.5px;color:var(--muted)}
-.obopt.on{border-color:var(--blue);background:#eef4fb;box-shadow:0 0 0 3px rgba(26,58,107,.09)}
+.obopt.on{border-color:var(--blue);background:#eceef3;box-shadow:0 0 0 3px rgba(44,74,116,.12)}
 .obdemo{margin:14px 0 6px}
 .obsent{font-size:19px;font-weight:700;color:var(--navy);line-height:2;margin-bottom:9px}
 .obsent i{font-style:normal;font-size:.55em;color:#7a8699;vertical-align:super;margin-left:1px}
-.obexp{font-size:14px;line-height:1.8;color:#2b2b2b;background:#faf7f2;border-left:3px solid var(--orange);padding:11px 13px;border-radius:8px}
+.obexp{font-size:14px;line-height:1.8;color:var(--text);background:#faf7f2;border-left:3px solid var(--orange);padding:11px 13px;border-radius:8px}
 .obnote{font-size:12.5px;color:var(--muted);margin-top:9px;text-align:center}
 #obNext:disabled{opacity:.4;pointer-events:none}
 /* 爆記：全螢幕遮罩，紙色底、朱色印章；不閃白、不震動 */
@@ -370,7 +370,7 @@ mark.btarget{background:#fff0c2;color:inherit;border-radius:4px;padding:0 2px}
 @media (prefers-reduced-motion: reduce){.bprog i{transition:none}.bstamp{transform:none}.card.pop,.card{animation:none!important;transition:none!important}}
 .pwq{margin:12px 0 2px;padding:11px 13px;border-radius:12px;background:#f7f2e9;border-left:3px solid var(--orange);text-align:left}
 .pwq .pj{font-size:16px;font-weight:700;line-height:1.5}
-.pwq .pz{font-size:13px;color:var(--muted,#6b6b6b);margin-top:3px}
+.pwq .pz{font-size:13px;color:var(--muted,var(--muted));margin-top:3px}
 /* WP-C：付費牆重排——一次付款字樣＋最下方的句數／免費範圍補充行，刻意用最小字級，
    數字（N_PAID_GRAM）全牆只在這裡出現一次。 */
 .pwonce{text-align:center;color:var(--muted);font-size:12px;margin-top:6px}
@@ -382,10 +382,10 @@ mark.btarget{background:#fff0c2;color:inherit;border-radius:4px;padding:0 2px}
 .rateask .rbtns{display:flex;gap:8px}
 .rateask .rbtns button{flex:1;padding:10px 6px;border-radius:11px;border:1.5px solid #dfd6c8;background:#fff;font-size:14px;font-weight:700;cursor:pointer;color:inherit}
 .rateask .rbtns button.yes{background:var(--orange);border-color:var(--orange);color:#fff}
-.rateask .rthx{font-size:13px;color:var(--muted,#6b6b6b);line-height:1.7}
+.rateask .rthx{font-size:13px;color:var(--muted,var(--muted));line-height:1.7}
 .reviewlink{display:block;margin:12px auto 0;padding:6px;background:none;border:none;cursor:pointer;color:var(--orange);font-weight:700;font-size:13px}
 .tierbox{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0 4px}
-.tier{border:1.5px solid #dfe6ef;border-radius:13px;padding:11px 10px;text-align:center}
+.tier{border:1.5px solid #cfd6e0;border-radius:13px;padding:11px 10px;text-align:center}
 .tier.free{background:#f2f8f2;border-color:#bcdcc0}
 .tier.paid{background:#fff8ee;border-color:var(--orange)}
 .tier .tt{font-size:11px;font-weight:800;letter-spacing:.05em;color:var(--muted)}
@@ -398,16 +398,16 @@ mark.btarget{background:#fff0c2;color:inherit;border-radius:4px;padding:0 2px}
   z-index:120;opacity:0;pointer-events:none;transition:opacity .2s;max-width:82vw;text-align:center}
 .audtoast.on{opacity:1}
 .pw .sheet{position:relative;background:#fff;width:100%;max-width:560px;border-radius:26px 26px 0 0;padding:26px 22px calc(26px + env(safe-area-inset-bottom));box-shadow:0 -10px 40px rgba(0,0,0,.25)}
-.sheetx{position:absolute;top:14px;right:14px;width:36px;height:36px;border:none;border-radius:50%;background:#eef2f7;color:#26323f;font-size:18px;font-weight:700;line-height:36px;text-align:center;cursor:pointer;z-index:3;box-shadow:0 1px 4px rgba(0,0,0,.14)}
-.sheetx:active{background:#dde5ef}
+.sheetx{position:absolute;top:14px;right:14px;width:36px;height:36px;border:none;border-radius:50%;background:#eceef3;color:#26323f;font-size:18px;font-weight:700;line-height:36px;text-align:center;cursor:pointer;z-index:3;box-shadow:0 1px 4px rgba(0,0,0,.14)}
+.sheetx:active{background:#cfd6e0}
 .grambody .gsec:first-child{margin-top:2px}
 .pw .grip{width:42px;height:5px;background:var(--line);border-radius:99px;margin:0 auto 16px}
 .heatWrap{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:2px 0}
 .heatGrid{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,1fr);gap:3px;width:max-content;margin:0 auto}
-.hcell{width:13px;height:13px;border-radius:3px;background:#eaeef3}
-.hcell.l1{background:color-mix(in srgb,var(--orange) 28%,#eaeef3)}
-.hcell.l2{background:color-mix(in srgb,var(--orange) 52%,#eaeef3)}
-.hcell.l3{background:color-mix(in srgb,var(--orange) 76%,#eaeef3)}
+.hcell{width:13px;height:13px;border-radius:3px;background:#eceef3}
+.hcell.l1{background:color-mix(in srgb,var(--orange) 28%,#eceef3)}
+.hcell.l2{background:color-mix(in srgb,var(--orange) 52%,#eceef3)}
+.hcell.l3{background:color-mix(in srgb,var(--orange) 76%,#eceef3)}
 .hcell.l4{background:var(--orange)}
 .hcell.today{outline:2px solid var(--navy);outline-offset:1px}
 .heatStats{display:flex;gap:22px;justify-content:center;margin:4px 0 16px;flex-wrap:wrap}
@@ -431,7 +431,7 @@ mark.btarget{background:#fff0c2;color:inherit;border-radius:4px;padding:0 2px}
 .kmtabs button{flex:1;border:1.5px solid var(--line);background:#fff;border-radius:11px;padding:10px 6px;font-size:14px;font-weight:700;color:var(--muted);cursor:pointer}
 .kmtabs button.on{background:var(--navy);border-color:var(--navy);color:#fff}
 .kmtabs button.kmtog{flex:0 0 auto;padding:10px 12px;font-size:12px}
-.kmtabs button.kmtog.on{background:#eef4fb;border-color:#d5e3f3;color:var(--blue)}
+.kmtabs button.kmtog.on{background:#eceef3;border-color:#cfd6e0;color:var(--blue)}
 .kmgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}
 .kmc{aspect-ratio:1;background:#fff;border:1.5px solid var(--line);border-radius:13px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;cursor:pointer;-webkit-user-select:none;user-select:none}
 .kmc:active{transform:scale(.95)}
@@ -544,6 +544,58 @@ mark.btarget{background:#fff0c2;color:inherit;border-radius:4px;padding:0 2px}
 .mrecent{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 12px}
 .mrecent .rc{background:#fff;border:1px solid var(--line);border-radius:99px;padding:4px 11px;font-size:13px;color:var(--navy);cursor:pointer}
 .mrecent .lbl{font-size:11px;color:var(--muted);margin-left:2px}
+/* ═══ 最後升級（Codex 視覺評審 + 收斂）：米紙底、墨色結構、朱紅只給操作與標記 ═══ */
+/* 今日任務卡：從深藍漸層改成紙面，深藍不再跟朱紅主鈕搶 */
+.hero{background:var(--surface);color:var(--navy);border:1px solid var(--line);box-shadow:none;border-radius:18px;padding:18px 20px}
+.hero .sub{color:var(--muted)}
+.hprog{background:var(--line)}
+/* 主鈕：實心朱紅、去掉厚底與紅光暈 */
+.bigbtn{box-shadow:none;border-radius:13px;padding:15px}
+.bigbtn:active{transform:none;background:var(--shu-d);box-shadow:none}
+.bigbtn.ghost{background:var(--surface);box-shadow:none}
+.bigbtn.ghost:active{transform:none;box-shadow:none;background:var(--surface2)}
+/* 容器：一般容器只留底色與細框，不浮起 */
+.searchbar,.deckchip,.dirselect,.seg,.subtoggle,.chip,.util button,.procard,.lvc,.spc,.thc,.dchip{box-shadow:none;background:var(--surface)}
+.searchbar{border-width:1px}
+.lvc.on,.spc.on,.thc.on{background:var(--orange-soft);border-color:var(--orange);box-shadow:none}
+.card{box-shadow:var(--shadow);border:1px solid var(--line)}
+.pw .sheet{background:var(--surface);box-shadow:0 -8px 32px rgba(22,39,63,.10)}
+/* 卡背工具列：文法＝淡朱底朱字；其他工具透明底靛字；爆記降為輕量 */
+.exopbtn{border:1px solid transparent;background:transparent;color:var(--blue);box-shadow:none}
+.exopbtn.exsnd{background:transparent;border-color:transparent;color:var(--blue)}
+.exopbtn.bk{background:transparent;border-color:transparent;color:var(--blue)}
+.exopbtn.bk.on{background:var(--orange-soft);border-color:transparent;color:var(--orange)}
+.exopbtn.gram{background:var(--orange-soft);border-color:transparent;color:var(--orange)}
+.exopbtn.gram.locked{background:var(--surface2);color:var(--muted)}
+.ex{background:var(--surface2)}
+.blastbtn{border:none;background:var(--orange-soft);box-shadow:none}
+.starbtn.on{background:var(--orange-soft);border-color:transparent}
+/* 四顆評分鍵：灰朱兩階（要再練）＋灰靛兩階（想得起來），同一語言 */
+.rate{gap:8px}
+.rate button{box-shadow:none;border-radius:12px;min-height:68px}
+.r-again{background:#9b514b} .r-hard{background:#aa5f53} .r-good{background:#526981} .r-easy{background:#2c4a74}   /* 白字 5.7 / 4.7 / 5.7 / 9.0 */
+.rate small{opacity:1}
+/* 五十音表：熟練格退到淡靛＋勾，目前練的那一行淡朱，未開放列實線淡框 */
+.kmc{border-width:1px}
+.kmc.lock{border-style:solid;border-color:var(--line);background:var(--bg)}
+.kmc.m1{background:var(--orange-soft);border-color:#eccfc8}
+.kmc.m2{background:#f0d6d0;border-color:#e0b3a9}
+.kmc.m3{background:var(--blue-soft);border-color:#c9d3e3} .kmc.m3 .g{color:var(--navy)} .kmc.m3 .r{color:var(--muted)} .kmc.m3 .m{color:var(--blue)}
+.kmc.m3 .m::after{content:' ✓'}
+.kmc.cur:not(.m1):not(.m2):not(.m3){border-color:var(--orange);background:var(--surface)}
+.kcanvas .ghost{opacity:1} .kcanvas .ghost path{stroke:var(--trace)}
+.kslab,.kpnone,.kscredit{color:var(--muted)}
+/* 更多 sheet：三張活動卡改成一組列表 */
+.util{display:flex;flex-direction:column;gap:0;background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.util button{display:flex;flex-direction:row;align-items:center;gap:12px;padding:12px 16px;border:0;border-bottom:1px solid var(--line);border-radius:0;background:none;text-align:left;min-height:56px}
+.util button .ic{flex:none} .util b,.util em{display:inline}
+.util button:last-child{border-bottom:0}
+.util button:active{transform:none;background:var(--surface2)}
+.util b{font-size:14.5px}
+.util em{font-size:12px;margin-left:auto}
+.reviewlink{color:var(--blue)}
+/* 首頁：同一件事不要說三次——牌組 chip 只留名稱；hero 下方的範圍行拿掉 */
+#scopeLine{display:none}
 .hero{position:relative;overflow:hidden}.hero>*{position:relative;z-index:1}.hero::after{content:'';position:absolute;inset:0;z-index:0;opacity:.5;pointer-events:none;background-image:radial-gradient(circle at 0 100%,transparent 30%,rgba(255,255,255,.06) 31%,rgba(255,255,255,.06) 40%,transparent 41%),radial-gradient(circle at 100% 100%,transparent 30%,rgba(255,255,255,.06) 31%,rgba(255,255,255,.06) 40%,transparent 41%),radial-gradient(circle at 50% 100%,transparent 30%,rgba(255,255,255,.06) 31%,rgba(255,255,255,.06) 40%,transparent 41%);background-size:44px 22px;background-position:0 0,0 0,22px 0}</style>
 </head>
 <script>
@@ -690,7 +742,7 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
     <h2 style="color:var(--navy);font-size:20px;margin:0 2px 2px">五十音表</h2>
     <div class="kmtabs"><button data-s="h" id="kmTabH">平假名</button><button data-s="k" id="kmTabK">片假名</button><button class="kmtog" id="kmRomaji">羅馬拼音</button></div>
     <div class="kmgrid" id="kmGrid"></div>
-    <div class="kmlegend"><span><i style="background:#fff"></i>還沒學</span><span><i style="background:#fdf0ec"></i>剛認識</span><span><i style="background:#f7d5cd"></i>會了</span><span><i style="background:var(--orange)"></i>熟了</span></div>
+    <div class="kmlegend"><span><i style="background:#fff"></i>還沒學</span><span><i style="background:var(--orange-soft)"></i>剛認識</span><span><i style="background:#f0d6d0"></i>會了</span><span><i style="background:var(--blue-soft)"></i>熟了 ✓</span><span><i style="background:#fff;border-color:var(--orange)"></i>現在練</span></div>
     <div class="kmrule">一行五個字全部「會了」，下一行才會亮起來。點任何一格看讀音、聽發音、看你已經讀得出來的真字。</div>
     <button class="bigbtn" id="kmStudy">練這一行</button>
     <button class="subtoggle" id="kmDrill" style="margin-top:10px">⚡ 快問快答（10 題）</button>
@@ -1994,7 +2046,7 @@ function renderHome(){
   const curCards=deckCards();
   const curDone=curCards.filter(c=>isLearned(c.id)).length;
   // 「已學」的判定要講清楚：不是看過，是複習過至少兩次、間隔拉到 4 天以上
-  $('#curDeckChip').innerHTML=`<b>${deckLabel()} ▾</b><span title="複習過 2 次以上、間隔拉到 4 天以上才算已學">已學 ${numFmt(curDone)}<small style="opacity:.7">（複習 2 次以上、間隔 4 天起）</small></span>`;
+  $('#curDeckChip').innerHTML=`<b>${deckLabel()} ▾</b><span title="複習過 2 次以上、間隔拉到 4 天以上才算已學">已學 ${numFmt(curDone)}／${numFmt(curCards.length)}</span>`;
   $('#curDeckChip').onclick=()=>{ $('#deckSectionT').scrollIntoView({behavior:'smooth',block:'start'}); };
   $('#curDeckChip').onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); $('#curDeckChip').click(); } };
   // 今日任務卡：主文案講「今天要做什麼」，副文案拆新字／複習，「已學會」已經搬到上面的牌組 chip
@@ -3009,41 +3061,47 @@ function studyMascotReact(r){
   SM_HOLD=Date.now()+950;
   studyMascot(r===0?'oops':r===3?'think':'happy', 'r'+r);
 }
-/* 戳企鵝：跳一下＋拍翅膀＋回一句話。原本點了沒反應，有吉祥物卻不能互動很可惜。 */
-const POKE_LINES=[['なに？','什麼事？'],['くすぐったい！','好癢！'],['いっしょにがんばろう','一起加油'],['ぺんぎんだよ','我是企鵝喔'],['きょうもえらい！','今天也很棒！'],['ひとつずつ、ね','一個一個來'],['さむくないよ','我不冷喔']];
-let POKE_T=null;
-function pokeMascot(){
-  const a=$('#mascotArt'), b=$('#mascotSay'); if(!a||!b) return;
-  if(POKE_T){ clearTimeout(POKE_T); }
-  const [jp,zh]=POKE_LINES[Math.floor(Math.random()*POKE_LINES.length)];
-  a.innerHTML=pengu('happy',76); a.dataset.face='poke'; a.querySelector('.pg-svg').classList.add('pg-poke');
-  b.innerHTML=`${esc(jp)}<small>${esc(zh)}</small>`;
-  try{ if(IS_NATIVE&&window.webkit?.messageHandlers?.haptic) window.webkit.messageHandlers.haptic.postMessage('light'); }catch(e){}
-  POKE_T=setTimeout(()=>{ POKE_T=null; renderMascot(); },2600);
-}
 /* 最近學會的字：評分「想了一下」以上就進來，最多留 8 個，首頁顯示 4 個 */
 let RECENT = LS.get('ja_recent', []);
 function recentPush(id){ RECENT=[id,...RECENT.filter(x=>x!==id)].slice(0,8); LS.set('ja_recent',RECENT); }
 /* 問候依時段與狀態換，不是每次都同一句。每句都附中文，順便多看一次日文。 */
-function mascotLine(){
-  const h=new Date().getHours(), due=dueNow(), st=STAT.streak||0;
-  const gap = STAT.lastDay ? Math.round((new Date(todayStr())-new Date(STAT.lastDay))/DAY) : 0;
-  if(h>=23||h<5) return ['まだ起きてる？一枚だけでもいいよ','還醒著？背一張也好','sleepy'];
-  if(gap>=3) return ['おかえり！待ってたよ','歡迎回來！等你很久了','happy'];
-  if(due===0) return ['今日の分、おわり。おつかれさま','今天的份做完了，辛苦了','happy'];
-  if(due>=60) return ['今日はちょっと多いね。ゆっくりいこう','今天有點多，慢慢來','think'];
-  if(st>=7) return [`${st}日連続！すごい`, `連續 ${st} 天！很厲害`,'happy'];
-  if(h<11) return ['おはよう！今日も一緒にがんばろう','早安！今天也一起加油','happy'];
-  if(h<18) return ['こんにちは！ちょっとだけやろう','午安！做一點點就好','idle'];
-  return ['こんばんは！今日の分、いこう','晚安！來做今天的份','idle'];
+/* 泡泡預設講「現在的學習進度」，不再是問候語（QQ：預設要表達目前進度）。表情仍依時段／狀態。 */
+function mascotProgress(){
+  const h=new Date().getHours(), cards=deckCards(), due=dueNow(), st=STAT.streak||0;
+  const ids=new Set(STAT.todayIds||[]); const done=cards.filter(c=>ids.has(c.id)).length;
+    const gap = STAT.lastDay ? Math.round((new Date(todayStr())-new Date(STAT.lastDay))/DAY) : 0;
+  const main = due===0 ? (done>0?`今天 ${done} 張做完了 ✓`:'今天沒有要複習的') : (done>0?`今天 ${done}／${done+due} 張`:`今天要做 ${due} 張`);
+  const sub = `${deckLabel()}${st>1?`・連續 ${st} 天`:''}${due>0&&done>0?`・還剩 ${due} 張`:''}`;   // 已學 N／M 在牌組 chip 已經有，不重複
+  const face = (h>=23||h<5) ? 'sleepy' : gap>=3 ? 'happy' : due===0 ? 'happy' : due>=60 ? 'think' : 'idle';
+  return [main, sub, face];
 }
+/* 點企鵝：講一個單字（日文＋讀音＋中文）並發音；再點換下一個。優先講今天到期的，其次最近學會的，再來隨機。5 秒後回到進度。 */
+let SAY_I=0, SAY_POOL=[], POKE_T=null;
+function mascotSayWord(){
+  const a=$('#mascotArt'), b=$('#mascotSay'); if(!a||!b) return;
+  if(!SAY_POOL.length||SAY_I>=SAY_POOL.length){
+    const cards=deckCards(); const due=cards.filter(c=>{ const x=srsGet(c.id); return x&&x.due<=now(); });
+    const rec=RECENT.map(cardById).filter(Boolean); const pool=[...due,...rec];
+    const seen=new Set(); SAY_POOL=pool.filter(c=>!seen.has(c.id)&&seen.add(c.id)).sort(()=>Math.random()-.5);
+    if(!SAY_POOL.length) SAY_POOL=cards.slice().sort(()=>Math.random()-.5).slice(0,12);
+    SAY_I=0; }
+  const c=SAY_POOL[SAY_I++]; if(!c) return;
+  const kana=kanaOfCard(c)||''; const read = kana&&kana!==c.nl ? kana : (levelOf(c)==='KANA' ? kanaRoma(c.nl) : '');
+  if(POKE_T){ clearTimeout(POKE_T); }
+  a.innerHTML=pengu('happy',76); a.dataset.face='poke'; a.querySelector('.pg-svg').classList.add('pg-poke');
+  b.innerHTML=`<b style="font-size:17px">${esc(c.nl)}</b>${read?` <span style="color:var(--muted);font-size:13px">${esc(read)}</span>`:''}<small>${esc(zhBase(c.zh))}${SAY_POOL.length>1?'　·　再點一下換一個':''}</small>`;
+  try{ if(HAS_AUDIO&&!c.my) play('w',c.id); }catch(e){}
+  try{ if(IS_NATIVE&&window.webkit?.messageHandlers?.haptic) window.webkit.messageHandlers.haptic.postMessage('light'); }catch(e){}
+  POKE_T=setTimeout(()=>{ POKE_T=null; renderMascot(); },5000);
+}
+function pokeMascot(){ mascotSayWord(); }
 function renderMascot(){
   const a=$('#mascotArt'), b=$('#mascotSay'); if(!a||!b) return;
   if(POKE_T) return;   // 正在戳，2.6 秒後會自己回來
-  const [jp,zh,face]=mascotLine();
+  const [main,sub,face]=mascotProgress();
   if(a.dataset.face!==face){ a.innerHTML=pengu(face,76); a.dataset.face=face; }   // 表情沒變就留著原本的 SVG，不然每次重繪首頁眨眼都從頭數（Codex 5）
-  b.innerHTML=`${esc(jp)}<small>${esc(zh)}</small>`;
-  if(!a.dataset.poke){ a.dataset.poke='1'; a.onclick=pokeMascot; a.style.cursor='pointer'; a.setAttribute('role','button'); a.setAttribute('tabindex','0'); a.setAttribute('aria-label','戳企鵝');
+  b.innerHTML=`${esc(main)}<small>${esc(sub)}</small>`;
+  if(!a.dataset.poke){ a.dataset.poke='1'; a.onclick=pokeMascot; a.style.cursor='pointer'; a.setAttribute('role','button'); a.setAttribute('tabindex','0'); a.setAttribute('aria-label','點企鵝聽一個單字');
     a.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); pokeMascot(); } }; }
   const r=$('#mascotRecent'); if(!r) return;
   const cards=RECENT.map(cardById).filter(Boolean).slice(0,4);
@@ -3093,8 +3151,8 @@ function renderKanaMap(){
   $('#kmGrid').innerHTML=rows.map((row,ri)=>row.map(g=>{
     if(!g) return '<div class="kmc gap"></div>';
     const m=kanaMastery(g); total++; if(m>=2) learned++;
-    const lock=ri>=unl;
-    return `<div class="kmc m${m}${lock?' lock':''}" data-g="${g}" role="button" tabindex="0"><span class="g">${g}</span>${KM_ROMAJI?`<span class="r">${kanaRoma(g)}</span>`:''}${m?`<span class="m">${m}</span>`:''}</div>`;
+    const lock=ri>=unl, cur=ri===unl-1;
+    return `<div class="kmc m${m}${lock?' lock':''}${cur?' cur':''}" data-g="${g}" role="button" tabindex="0"><span class="g">${g}</span>${KM_ROMAJI?`<span class="r">${kanaRoma(g)}</span>`:''}${m?`<span class="m">${m}</span>`:''}</div>`;
   }).join('')).join('');
   $('#kmProg').textContent=`${learned} / ${total} 會了`;
   const cur=rows[unl-1].filter(Boolean).join('');
