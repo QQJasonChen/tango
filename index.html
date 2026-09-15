@@ -278,6 +278,7 @@ body{font-family:-apple-system,'Segoe UI','Noto Sans TC',sans-serif;background:v
 #shLeft{left:14px;color:var(--orange);rotate:-11deg}
 #shRight{right:14px;color:#16a34a;rotate:11deg}
 .swipehint.on{opacity:1;transform:scale(1)}
+.swipehint.far{color:var(--green);font-weight:800}
 @keyframes cardpop{from{transform:scale(.94) translateY(10px);opacity:0}to{transform:none;opacity:1}}
 .card.pop{animation:cardpop .22s cubic-bezier(.2,1.3,.4,1)}
 .rate small{display:block;font-size:11px;font-weight:600;opacity:.85;margin-top:2px}
@@ -596,6 +597,11 @@ mark.btarget{background:#fff0c2;color:inherit;border-radius:4px;padding:0 2px}
 .reviewlink{color:var(--blue)}
 /* 首頁：同一件事不要說三次——牌組 chip 只留名稱；hero 下方的範圍行拿掉 */
 #scopeLine{display:none}
+.supportcard{display:flex;gap:12px;align-items:center;margin-top:14px;padding:14px 16px;background:var(--surface);border:1px solid var(--line);border-radius:16px}
+.supportcard .pg{flex:none;width:48px;height:48px}
+.supportcard .stext{font-size:13.5px;line-height:1.55;color:var(--navy)} .supportcard .stext b{color:var(--orange)}
+.sbtns{display:flex;gap:8px;margin-top:8px} .sbtns button{flex:1;min-height:44px;border-radius:12px;font-size:13.5px;font-weight:800;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--navy)}
+.sbtns button.main{background:var(--orange);border-color:var(--orange);color:#fff}
 .hero{display:none}
 .mbar{height:4px;border-radius:99px;background:var(--line);margin-top:8px;overflow:hidden}.mbar i{display:block;height:100%;width:0;border-radius:99px;background:var(--orange);transition:width .5s}
 .hero{position:relative;overflow:hidden}.hero>*{position:relative;z-index:1}.hero::after{content:'';position:absolute;inset:0;z-index:0;opacity:.5;pointer-events:none;background-image:radial-gradient(circle at 0 100%,transparent 30%,rgba(255,255,255,.06) 31%,rgba(255,255,255,.06) 40%,transparent 41%),radial-gradient(circle at 100% 100%,transparent 30%,rgba(255,255,255,.06) 31%,rgba(255,255,255,.06) 40%,transparent 41%),radial-gradient(circle at 50% 100%,transparent 30%,rgba(255,255,255,.06) 31%,rgba(255,255,255,.06) 40%,transparent 41%);background-size:44px 22px;background-position:0 0,0 0,22px 0}</style>
@@ -675,6 +681,12 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
         </ul>
         <button class="procta" id="proCardBtn">看看解鎖了有什麼</button>
       </div>
+      <!-- 支持卡：講清楚「一個人做、沒廣告、不收資料」，讓解鎖變成支持而不是消費 -->
+      <div class="supportcard" id="supportCard">
+        <div class="pg" id="supportArt"></div>
+        <div class="stext" id="supportText"></div>
+      </div>
+      <div class="sbtns" id="supportBtns"></div>
 
     </div>
   </div>
@@ -692,7 +704,7 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
     <div style="text-align:center;margin-top:6px"><span class="chip hidden" id="retryChip" style="color:var(--red)"></span></div>
     <div class="cardstage">
       <div class="swipehint" id="shLeft"><span class="sh-emo">🙈</span>沒想起來</div>
-      <div class="swipehint" id="shRight"><span class="sh-emo">🌱</span>想了一下</div>
+      <div class="swipehint" id="shRight"><span class="sh-emo">🌱</span>想起來了</div>
       <div class="card" id="card"></div>
     </div>
     <div id="controls"></div>
@@ -1190,7 +1202,7 @@ let QUEUE=[],qi=0,sessionTotal=0,lastSnap=null,exSeen=new Set();
    buildQueue()（真正開新的一輪學習，不含待再練子輪）時重置，完成畫面要用
    「本輪不重複卡數」與「本輪作答總次數」，不是全日累計。 */
 let RETRY=[], sessionCardCount=0, sessionAnswers=0, deferredRetry=false;
-function buildQueue(){lastSnap=null;BLAST_SESSION++;BLAST_ROUND=0;if(BLAST_ACTIVE)blastAbort();let cards=deckCards();if(CFG.dir==='listen')cards=cards.filter(c=>!c.my);const due=cards.filter(c=>{const s=srsGet(c.id);return s&&s.due<=now();});const fresh=cards.filter(c=>!srsGet(c.id)).slice(0,newLeftToday());let q=[...due,...fresh];for(let i=q.length-1;i>0;i--){const j=Math.floor((Math.sin(i*99.13+q.length)*0.5+0.5)*(i+1));[q[i],q[j]]=[q[j],q[i]];}QUEUE=q.map(c=>({card:c}));qi=0;sessionTotal=QUEUE.length;RETRY=[];sessionCardCount=QUEUE.length;sessionAnswers=0;deferredRetry=false;}
+function buildQueue(){lastSnap=null;SM_MILE={};BLAST_SESSION++;BLAST_ROUND=0;if(BLAST_ACTIVE)blastAbort();let cards=deckCards();if(CFG.dir==='listen')cards=cards.filter(c=>!c.my);const due=cards.filter(c=>{const s=srsGet(c.id);return s&&s.due<=now();});const fresh=cards.filter(c=>!srsGet(c.id)).slice(0,newLeftToday());let q=[...due,...fresh];for(let i=q.length-1;i>0;i--){const j=Math.floor((Math.sin(i*99.13+q.length)*0.5+0.5)*(i+1));[q[i],q[j]]=[q[j],q[i]];}QUEUE=q.map(c=>({card:c}));qi=0;sessionTotal=QUEUE.length;RETRY=[];sessionCardCount=QUEUE.length;sessionAnswers=0;deferredRetry=false;}
 /* 三鍵預覽用的「下次幾天後」，公式跟 schedule() 一致（不寫 due、不存） */
 function previewInterval(s,rating){
   const reps=s.reps||0, ease=s.ease||2.5, iv=s.interval||0;
@@ -1255,9 +1267,20 @@ const AUDFAILMSG='🔇 發音載入失敗，請確認網路連線';
    那不是網路問題，新的音檔正在正常播。把這種拒絕當失敗會跳出假警報。
    NotAllowedError 是瀏覽器擋自動播放，也不該說成網路問題。 */
 function realAudioFail(e){ const n=e&&e.name; return n!=='AbortError' && n!=='NotAllowedError'; }
-function play(kind,id){if(BLAST_ACTIVE)return;if(!HAS_AUDIO||id>=MYCARD_BASE)return;if(!AUD)AUD=new Audio();const _g=++AUDIO_GEN;AUD.onended=null;AUD.src=`${audioBase(id)}audio/${kind}_${id}.mp3`;AUD.playbackRate=kind==='w'?0.95:0.92*exSpeed();AUD.play().catch(e=>{if(AUDIO_GEN!==_g)return;if(realAudioFail(e))audioToast(AUDFAILMSG);});}
+/* 假名卡的例詞是字庫裡的真字（あ→会う）。它自己的 e_ 音檔是舊例詞（雨）配的；例詞換了音檔沒重做，
+   所以一律改播那個真字的單字音檔——讀音用 exzh 括號裡的假名對，避免「家」對到 うち。 */
+function kanaExAudioId(c){
+  if(!c||!c.ex) return null; const m=(c.exzh||'').match(/（([ぁ-ゖー]+)）/); const rd=m?m[1]:null;
+  let hit=null; for(const x of VOCAB){ if(x.nl===c.ex && !x.my){ if(!rd||kanaOfCard(x)===rd){ hit=x; break; } if(!hit) hit=x; } }
+  return hit?hit.id:null;
+}
+function audioSrc(kind,id){
+  if(kind!=='w'){ const c=cardById(id); if(c&&levelOf(c)==='KANA'){ const t=kanaExAudioId(c); if(t!=null){ kind='w'; id=t; } } }
+  return `${audioBase(id)}audio/${kind}_${id}.mp3`;
+}
+function play(kind,id){if(BLAST_ACTIVE)return;if(!HAS_AUDIO||id>=MYCARD_BASE)return;if(!AUD)AUD=new Audio();const _g=++AUDIO_GEN;AUD.onended=null;AUD.src=audioSrc(kind,id);AUD.playbackRate=kind==='w'?0.95:0.92*exSpeed();AUD.play().catch(e=>{if(AUDIO_GEN!==_g)return;if(realAudioFail(e))audioToast(AUDFAILMSG);});}
 /* 連播遇到壞檔要跳過繼續，不是整串停掉（停掉看起來就像「播到一半自己斷了」）。 */
-function playExamples(){if(BLAST_ACTIVE)return;if(!HAS_AUDIO||!curExs.length||curCardId>=MYCARD_BASE)return;if(!AUD)AUD=new Audio();let i=0,fails=0;const _g=++AUDIO_GEN,_cid=curCardId,_list=curExs.slice();const next=()=>{if(BLAST_ACTIVE||AUDIO_GEN!==_g)return;if(i>=_list.length){AUD.onended=null;if(fails)audioToast(AUDFAILMSG);return;}AUD.src=`${audioBase(_cid)}audio/${_list[i]}_${_cid}.mp3`;AUD.playbackRate=0.92*exSpeed();i++;AUD.onended=next;AUD.play().catch(e=>{if(realAudioFail(e))fails++;next();});};next();}
+function playExamples(){if(BLAST_ACTIVE)return;if(!HAS_AUDIO||!curExs.length||curCardId>=MYCARD_BASE)return;if(!AUD)AUD=new Audio();let i=0,fails=0;const _g=++AUDIO_GEN,_cid=curCardId,_list=curExs.slice();const next=()=>{if(BLAST_ACTIVE||AUDIO_GEN!==_g)return;if(i>=_list.length){AUD.onended=null;if(fails)audioToast(AUDFAILMSG);return;}AUD.src=audioSrc(_list[i],_cid);AUD.playbackRate=0.92*exSpeed();i++;AUD.onended=next;AUD.play().catch(e=>{if(realAudioFail(e))fails++;next();});};next();}
 
 /* ---------- helpers ---------- */
 function esc(s){return (s||'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
@@ -1821,7 +1844,7 @@ async function showGram(cardId, exKey){
   else { tasteLine.classList.add('hidden'); }
   const taste=nowPaid
     ? `<div class="gtaste"><span>想每句都看？解鎖後 N3–N1 每句都有解說</span><button onclick="$('#grampop').classList.add('hidden');openPaywall({cardId:${cardId},exKey:'${exKey}'})">解鎖</button></div>`
-    : '';
+    : (!isPro() ? `<div class="gtaste gfree"><span>N5・N4 的解說免費。想 N3 到 N1 每一句都有？一次解鎖${window.WJ_PRICE?'（'+esc(window.WJ_PRICE)+'）':''}，也是支持一個人開發</span><button onclick="$('#grampop').classList.add('hidden');openPaywall('gram_free_bottom')">解鎖・支持</button></div>` : '');
   GRAM_WORDS=d.words||[];
   const srcCard=VOCAB.find(c=>c.id==cardId);
   const zhKey=exKey==='ex'?'exzh':'exzh'+exKey.slice(2);
@@ -1960,6 +1983,13 @@ function renderHome(){
   $('#proChip').textContent = pro?'⭐ Pro':'⭐ 升級 Pro';
   $('#proChip').style.cursor = pro?'default':'pointer';
   $('#proCard').classList.toggle('hidden',pro);
+  { const a=$('#supportArt'), t=$('#supportText'), bt=$('#supportBtns'); if(a&&t&&bt){
+      if(!a.dataset.face){ a.innerHTML=pengu('happy',48); a.dataset.face='happy'; }
+      if(pro){ t.innerHTML='<b>謝謝你的支持。</b>你讓這個 App 能繼續免費給大家、沒有廣告。'; bt.innerHTML = IS_NATIVE ? '<button id="supReview">在 App Store 留句話</button>' : ''; }
+      else { t.innerHTML='単語ノート 是<b>一個人做的</b>，沒有廣告、不收資料。覺得有幫助的話，解鎖文法解說就是最好的支持；留個評論也很夠力。'; bt.innerHTML = '<button class="main" id="supUnlock">解鎖文法解說</button>'+(IS_NATIVE?'<button id="supReview">寫個評論</button>':''); }
+      const u=$('#supUnlock'); if(u) u.onclick=()=>openPaywall('support');
+      const r=$('#supReview'); if(r) r.onclick=()=>openExternal(STORE_REVIEW_URL);
+  } }
   // direction：五種方向收成一列下拉。B8：聽力/打字/造句原本要「學過 50 張」才開放，
   // 但門檻用 isLearned()（reps>=2 且 interval>=4）判斷，跟文案「學 50 張」語意對不上，
   // 而且會把使用者已經在用的模式無預警關掉、還把設定強制退回日文→中文。改成只給新手
@@ -2319,7 +2349,7 @@ function bPlayOnce(kind,id,rate,maxMs){
   try{
     if(!AUD)AUD=new Audio();
     AUD.onended=null;AUD.onerror=null;AUD.onplaying=null;AUD.onloadedmetadata=null;AUD.onwaiting=null;AUD.onstalled=null;
-    AUD.src=`${audioBase(id)}audio/${kind}_${id}.mp3`; AUD.playbackRate=rate;
+    AUD.src=audioSrc(kind,id); AUD.playbackRate=rate;
     AUD.onloadedmetadata=()=>{ if(!live()) return; if((AUD.duration||0)*1000/rate>maxMs) end('long'); };
     AUD.onplaying=()=>{ if(!live()) return; started=true; BLAST_STAGES.feedback='playing'; BLAST_T.push(setTimeout(()=>{ if(live()) end('slow'); },(maxMs+300)*BLAST_FAST())); };
     AUD.onended=()=>{ if(!live()) return; end('ok'); };
@@ -2358,7 +2388,7 @@ function bPlayThen(kind,id,rate,maxMs,textMs,cb,forceText){
   try{
     if(!AUD)AUD=new Audio();
     detach();
-    AUD.src=`${audioBase(id)}audio/${kind}_${id}.mp3`; AUD.playbackRate=rate;
+    AUD.src=audioSrc(kind,id); AUD.playbackRate=rate;
     AUD.onloadedmetadata=()=>{ if(!audioLive()) return; const need=(AUD.duration||0)*1000/rate; if(need>maxMs) degrade('long'); };
     AUD.onplaying=()=>{ if(!audioLive()) return; playing=true; BLAST_STAGES[kind]='playing'; if(ldwd){clearTimeout(ldwd);ldwd=null;} if(wwd){clearTimeout(wwd);wwd=null;} learnStart('audio'); armPlay(); };
     AUD.onwaiting=()=>{ if(audioLive()) pausePlay(); };
@@ -2644,16 +2674,18 @@ function initSwipe(){
   if(!stage||!el||stage.dataset.swipeReady)return;
   stage.dataset.swipeReady='1';                  // 只綁一次，showCard 每張都會呼叫
   const L=$('#shLeft'), R=$('#shRight');
-  const TH=88;                                    // 滑超過這個距離才算數
+  const TH=88, TH2=200;                           // 滑超過 TH 算數；右滑超過 TH2＝立刻想起（QQ：四段評分要能用手勢）
   let x0=0,y0=0,dx=0,axis=null,swallowClick=false;
 
   const paint=()=>{
     // 轉一點角度，手感才不像在推一個方塊
     el.style.transform=`translateX(${dx}px) rotate(${dx/22}deg)`;
     el.style.opacity=String(Math.max(.45,1-Math.abs(dx)/460));
-    const hit=Math.abs(dx)>=TH;
+    const hit=Math.abs(dx)>=TH, far=dx>=TH2;
     L.classList.toggle('on',dx<-14); R.classList.toggle('on',dx>14);
     L.style.transform=R.style.transform=hit?'scale(1.06)':'';
+    R.innerHTML = far ? '<span class="sh-emo">⚡</span>立刻想起' : '<span class="sh-emo">🌱</span>想起來了';
+    R.classList.toggle('far',far);
   };
   const clear=()=>{L.classList.remove('on');R.classList.remove('on');};
 
@@ -2680,7 +2712,7 @@ function initSwipe(){
       el.style.transform=`translateX(${dir*window.innerWidth*1.1}px) rotate(${dir*22}deg)`;
       el.style.opacity='0';
       clear();
-      const r=dir<0?0:1;
+      const r=dir<0?0:(dx>=TH2?2:1);
       { const at=qi, cid=QUEUE[qi]&&QUEUE[qi].card.id;   // 180ms 內按結束／換佇列，舊回呼不能再評分（Codex 3-1）
         setTimeout(()=>{ if($('#study').classList.contains('hidden')||qi!==at||!QUEUE[qi]||QUEUE[qi].card.id!==cid) return; rate(r); },180); }
     }else{
@@ -2878,7 +2910,7 @@ function playSentList(){
   if(BLAST_ACTIVE)return;
   if(!AUD)AUD=new Audio();let i=0;
   let fails=0;const _g=++AUDIO_GEN,_list=curSent.slice();
-  const next=()=>{if(BLAST_ACTIVE||AUDIO_GEN!==_g)return;if(i>=_list.length){AUD.onended=null;if(fails)audioToast(AUDFAILMSG);return;}AUD.src=`${audioBase(_list[i].cid)}audio/${_list[i].k}_${_list[i].cid}.mp3`;AUD.playbackRate=0.92*exSpeed();i++;AUD.onended=next;AUD.play().catch(e=>{if(realAudioFail(e))fails++;next();});};
+  const next=()=>{if(BLAST_ACTIVE||AUDIO_GEN!==_g)return;if(i>=_list.length){AUD.onended=null;if(fails)audioToast(AUDFAILMSG);return;}AUD.src=audioSrc(_list[i].k,_list[i].cid);AUD.playbackRate=0.92*exSpeed();i++;AUD.onended=next;AUD.play().catch(e=>{if(realAudioFail(e))fails++;next();});};
   next();
 }
 
@@ -3048,7 +3080,11 @@ const SM_LINES={
   r3:[['おしい！','差一點！'],['もうすぐ覚える','快記住了']],
   r1:[['いいね！','很好！'],['その調子','就是這樣']],
   r2:[['すごい！','厲害！'],['もう覚えたね','已經記住了']],
+  half:[['半分きた！','過半了！'],['いい調子','狀態不錯']],
+  last:[['ラスト一枚！','最後一張！'],['あと一つ','再一個就好']],
+  start:[['さあ、いこう','來吧'],['今日も一緒に','今天也一起']],
 };
+let SM_MILE={};   // 每輪只講一次的里程碑（過半／最後一張）
 let SM_HOLD=0, SM_T=null;
 function studyMascot(state, kind){
   const a=$('#sMascotArt'), b=$('#sMascotSay'); if(!a||!b) return;
@@ -3060,6 +3096,11 @@ function studyMascotFront(){
   if(SM_T){ clearTimeout(SM_T); SM_T=null; }
   const go=()=>{ SM_T=null; if($('#study').classList.contains('hidden')) return;
     if(revealed){ const c=QUEUE[qi]&&QUEUE[qi].card; studyMascot('idle', (c&&(c.ex||c.ex2))?'back':'backNoEx'); return; }   // 反應期間已翻面：講背面的（Codex 6-7）
+    /* 跟著進度走：第一張打招呼、過半慶祝一下、最後一張催一下，其餘照模式提示（QQ：企鵝要跟進度條一起變） */
+    const tot=sessionTotal||0, at=qi;
+    if(tot>=4 && at===tot-1 && !SM_MILE.last){ SM_MILE.last=1; studyMascot('happy','last'); return; }
+    if(tot>=4 && at>=Math.ceil(tot/2) && !SM_MILE.half){ SM_MILE.half=1; studyMascot('happy','half'); return; }
+    if(at===0 && !SM_MILE.start){ SM_MILE.start=1; studyMascot('idle','start'); return; }
     const k = CFG.dir==='listen'?'listen' : (CFG.dir==='type'||CFG.dir==='sentence')?'type' : 'front'; studyMascot('think',k); };
   const wait=SM_HOLD-Date.now(); if(wait>0) SM_T=setTimeout(go,wait); else go();
 }
