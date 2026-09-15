@@ -201,6 +201,7 @@ body{font-family:-apple-system,'Segoe UI','Noto Sans TC',sans-serif;background:v
 .zh{font-size:24px;font-weight:700;color:var(--navy);text-align:center}
 .ex{display:flex;align-items:center;gap:12px;background:var(--bg);border-radius:14px;padding:11px 14px;margin-top:10px;font-size:15px}
 .ex .extext{flex:1;min-width:0}
+.exaud.gramlink{font-size:17px}.exaud.gramlink.locked{opacity:.55}
 .exaud{flex-shrink:0;width:38px;height:38px;border:none;background:#eef4fb;color:var(--blue);border-radius:50%;font-size:16px;cursor:pointer}
 .exaud:active{transform:scale(.9)}
 .exaud,.wordaud,.aud,.baud,.exbk,.exgram{display:inline-flex;align-items:center;justify-content:center}
@@ -612,7 +613,7 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
 
       <div class="procard" id="proCard">
         <h3>🔍 句型解說</h3>
-        <div style="font-size:13px;color:var(--muted);margin-bottom:8px;padding-right:56px">五十音・N5・N4 免費看　·　N3 以上需解鎖<span id="tasteHint" class="hidden">　·　每天免費試看 <span class="n-taste">1</span> 句</span></div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:8px;padding-right:56px">所有單字與五十音免費　·　N5・N4 的文法解說免費　·　N3 以上需解鎖<span id="tasteHint" class="hidden">　·　每天免費試看 <span class="n-taste">1</span> 句</span></div>
         <ul>
           <li>每句例句一整段<b>老師口吻的講解</b>：助詞為什麼這樣用、動詞怎麼變</li>
           <li>還會點出<b>學習者最容易搞錯的地方</b></li>
@@ -651,6 +652,7 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
     <div class="doneJp">お つ か れ さ ま</div>
     <p id="doneMsg">今天的複習完成了</p>
     <p id="doneTomorrow"></p>
+    <div class="rateask hidden" id="remindAsk"><div class="rq">要不要每天這個時候提醒你？<br><small style="font-weight:500;color:var(--muted)">一天一則，可以在「更多」關掉</small></div><div class="rbtns"><button id="remindNo">不用</button><button class="yes" id="remindYes">好，提醒我</button></div></div>
     <button class="bigbtn" id="doneBack" style="max-width:240px">回首頁</button>
   </div>
 
@@ -686,7 +688,7 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
       <span class="chip" id="kmProg"></span>
     </div>
     <h2 style="color:var(--navy);font-size:20px;margin:0 2px 2px">五十音表</h2>
-    <div class="kmtabs"><button data-s="h" id="kmTabH">平假名</button><button data-s="k" id="kmTabK">片假名</button><button class="kmtog" id="kmRomaji">ローマ字</button></div>
+    <div class="kmtabs"><button data-s="h" id="kmTabH">平假名</button><button data-s="k" id="kmTabK">片假名</button><button class="kmtog" id="kmRomaji">羅馬拼音</button></div>
     <div class="kmgrid" id="kmGrid"></div>
     <div class="kmlegend"><span><i style="background:#fff"></i>還沒學</span><span><i style="background:#fdf0ec"></i>剛認識</span><span><i style="background:#f7d5cd"></i>會了</span><span><i style="background:var(--orange)"></i>熟了</span></div>
     <div class="kmrule">一行五個字全部「會了」，下一行才會亮起來。點任何一格看讀音、聽發音、看你已經讀得出來的真字。</div>
@@ -884,7 +886,12 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
         <span style="font-size:13.5px;font-weight:700;color:var(--navy)">每日新字目標</span>
         <select id="newPerDaySelect" style="border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:14px;font-weight:700;color:var(--navy);background:#fff"></select>
       </div>
-      <button class="reviewlink hidden" id="reviewBtn" style="margin-top:14px">喜歡這個 App？寫個評論 ›</button>
+      <div class="hidden" id="remindRow" style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;padding:12px 15px;background:#fff;border:1px solid var(--line);border-radius:13px;box-shadow:var(--shadow)">
+        <label for="remindOn" style="font-size:13.5px;font-weight:700;color:var(--navy);display:flex;align-items:center;gap:8px"><input type="checkbox" id="remindOn" style="width:18px;height:18px;accent-color:var(--orange)">每日提醒</label>
+        <select id="remindTime" style="border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:14px;font-weight:700;color:var(--navy);background:#fff"></select>
+      </div>
+      <div class="hidden" id="remindNote" style="font-size:12px;color:var(--muted);margin:4px 4px 0;line-height:1.5"></div>
+      <button class="reviewlink hidden" id="reviewBtn" style="margin-top:14px">在 App Store 評論 ›</button>
       <button class="reviewlink hidden" id="moreFeedback">✉️ 回報問題 ›</button>
       <button class="closex" id="moreClose">關閉</button>
     </div>
@@ -1656,7 +1663,9 @@ function exGramKey(k){ return k==='e'?'ex':'ex'+k.slice(1); }
 function gramBtnLabel(card, exKey, st){
   if(isPro()) return '文法解說';
   if(gramFree(card.id)) return '文法解說・免費';
-  return canTaste(card.id+':'+exKey, st) ? '試看解說' : '🔒 解鎖解說';
+  st=st||tasteState(); const key=card.id+':'+exKey;
+  if(st.seen.indexOf(key)>=0) return '重看解說・不扣次數';
+  const left=Math.max(0,tasteAvail(st,key)); return left>0 ? `試看解說・今日剩 ${left} 句` : '🔒 解鎖解說';
 }
 let VOCAB_BY_ID=null;
 function cardById(id){ if(!VOCAB_BY_ID){ VOCAB_BY_ID=new Map(VOCAB.map(c=>[c.id,c])); } return VOCAB_BY_ID.get(+id); }
@@ -1891,7 +1900,7 @@ function renderHome(){
   $('#sentences').classList.add('hidden');$('#browse').classList.add('hidden');
   const pro=isPro();
   $('#streakChip').innerHTML=ico('s_streak',19)+'連續 '+(STAT.streak||0)+' 天'; $('#streakChip').classList.toggle('zero',!(STAT.streak>0));
-  pushWidget();
+  pushWidget(); scheduleReminder();
   $('#streakChip').style.cursor='pointer'; $('#streakChip').onclick=openHeat;
   $('#proChip').textContent = pro?'⭐ Pro':'⭐ 升級 Pro';
   $('#proChip').style.cursor = pro?'default':'pointer';
@@ -2011,7 +2020,7 @@ function renderHome(){
   // 一句情境提示：新手講免費解說在哪裡、N3 以上講每天可試看幾句——只講一件事，不堆促銷
   const tipEl=$('#homeTip'); if(tipEl){
     tipEl.textContent = isPro() ? '所有例句的文法解說都已解鎖'
-      : CFG.deck==='KANA' ? '想看文法示範？點下方「看看免費的文法解說」'
+      : CFG.deck==='KANA' ? '每個假名都有發音和筆順動畫，點「看五十音表」'
       : FREE_GRAM_LEVELS.includes(CFG.deck) ? '翻面後點「文法解說・免費」，每句例句都有老師講解'
       : IS_NATIVE ? `N3 以上的例句解說每天可免費試看 ${TASTE_PER_DAY} 句` : 'N3 以上的例句解說請在 App 內解鎖';
   }
@@ -2097,7 +2106,7 @@ function taskHintHtml(card){
   const isNewCard=!srsGet(card.id);
   // ⑨：假名判斷要看「這張卡」的級別，不是目前選的牌組——deck='all'／'star' 這類
   // 混合牌組裡本來就會混到 KANA 卡，用 CFG.deck 判斷會漏掉這些卡。
-  const text = isNewCard ? ((CFG.dir==='type'||CFG.dir==='sentence') ? '先看答案認識它' : '還不會也沒關係，先聽一次') : (levelOf(card)==='KANA' ? '看到它就念出來' : (TASK_HINT[CFG.dir]||''));
+  const text = isNewCard ? ((CFG.dir==='type'||CFG.dir==='sentence') ? '先看答案認識它' : (levelOf(card)==='KANA' ? '先聽一次再翻面。不會就選「沒想起來」，等一下會再遇到它' : '還不會也沒關係，先聽一次')) : (levelOf(card)==='KANA' ? '看到它就念出來' : (TASK_HINT[CFG.dir]||''));
   if(!text) return '';
   return `<div class="hintline">${isNewCard?'<span class="newtag">第一次認識</span><br>':''}${esc(text)}</div>`;
 }
@@ -2183,12 +2192,12 @@ function revealBack(autoRate,extraTop){
   const ih=previewInterval(s,3), ig=previewInterval(s,1), ie=previewInterval(s,2);
   /* 第一次翻面（一生一次）在三鍵上方多講一句在選什麼，之後不再出現，免得每張卡都要看。 */
   const tipShown=LS.get('ja_tip_rate',0);
-  const rateTip = tipShown ? '' : '<div class="hintline" style="margin-top:0">依看答案前的記憶選擇</div>';
+  const rateTip = tipShown ? '' : '<div class="hintline" style="margin-top:0">照「看答案之前」記不記得來選，第一次選「沒想起來」很正常</div>';
   if(!tipShown) LS.set('ja_tip_rate',1);
   $('#controls').innerHTML=`${rateTip}<div class="rate">
     <button class="r-again" data-r="0">沒想起來<small>輪末再練</small></button>
-    <button class="r-hard" data-r="3">有點難<small>${ih}天</small></button>
-    <button class="r-good" data-r="1">想了一下<small>${ig}天</small></button>
+    <button class="r-hard" data-r="3">勉強想起<small>${ih}天</small></button>
+    <button class="r-good" data-r="1">想起來了<small>${ig}天</small></button>
     <button class="r-easy" data-r="2">立刻想起<small>${ie}天</small></button></div>`;
   document.querySelectorAll('.rate button').forEach(b=>b.onclick=()=>rate(+b.dataset.r));
   if(AUTOPLAY_T){clearTimeout(AUTOPLAY_T);AUTOPLAY_T=null;}
@@ -2714,11 +2723,47 @@ function renderNewPerDaySelect(){
   sel.innerHTML=opts.map(n=>`<option value="${n}"${n===cur?' selected':''}>${n} 個</option>`).join('');
 }
 $('#newPerDaySelect').onchange=()=>{ CFG.newPerDay=+$('#newPerDaySelect').value; LS.set('ja_cfg',CFG); renderHome(); };
-$('#moreBtn').onclick=()=>{ renderNewPerDaySelect(); $('#moreSheet').classList.remove('hidden'); };
+$('#moreBtn').onclick=()=>{ renderNewPerDaySelect(); renderRemindRow(); $('#moreSheet').classList.remove('hidden'); };
+/* ── 每日提醒（原生本機通知，沒有後端）──
+   文案在排程當下算好：明天提醒時間前會到期的張數＋新字配額。每次回首頁都重排一次，所以數字跟得上進度。 */
+function remindCfg(){ const r=CFG.remind||{}; return {on:!!r.on, h:Number.isInteger(r.h)?r.h:20, m:Number.isInteger(r.m)?r.m:0, asked:!!r.asked}; }
+function remindSave(r){ CFG.remind=r; LS.set('ja_cfg',CFG); }
+function remindBody(r){
+  try{ const t=new Date(); t.setDate(t.getDate()+1); t.setHours(r.h,r.m,0,0); const cards=deckCards();
+    const due=cards.filter(c=>{ const x=srsGet(c.id); return x&&x.due<=t.getTime(); }).length;
+    const fresh=Math.min(CFG.newPerDay??15, cards.filter(c=>!srsGet(c.id)).length);
+    const n=due+fresh; const st=STAT.streak||0;
+    if(n===0) return '今天沒有到期的字，來學幾個新的吧';
+    return (st>=3?`連續 ${st} 天了，別斷在今天。`:'')+`有 ${n} 張在等你，5 分鐘就好`;
+  }catch(e){ return '今天的份還在等你'; }
+}
+function scheduleReminder(){
+  if(!IS_NATIVE) return; const r=remindCfg();
+  try{ const h=webkit.messageHandlers.notify; if(!h) return;
+    if(!r.on){ h.postMessage({action:'cancel'}); return; }
+    h.postMessage({action:'schedule',hour:r.h,minute:r.m,title:'単語ノート',body:remindBody(r)});
+  }catch(e){}
+}
+window.onNotifyStatus=function(o){
+  if(!o) return; const r=remindCfg();
+  if(o.granted===false && r.on){ r.on=false; remindSave(r); renderRemindRow(); const n=$('#remindNote'); if(n){ n.textContent='通知權限沒有開。到 iOS 設定 › 単語ノート › 通知 打開後再勾一次。'; n.classList.remove('hidden'); } }
+};
+function renderRemindRow(){
+  const row=$('#remindRow'); if(!row) return; if(!IS_NATIVE){ row.classList.add('hidden'); return; }
+  row.classList.remove('hidden'); const r=remindCfg();
+  const sel=$('#remindTime'); sel.innerHTML=[7,8,9,12,18,19,20,21,22].map(h=>`<option value="${h}"${h===r.h?' selected':''}>${String(h).padStart(2,'0')}:${String(r.m).padStart(2,'0')}</option>`).join('');
+  $('#remindOn').checked=r.on;
+  const n=$('#remindNote'); if(n){ n.classList.toggle('hidden',!r.on); if(r.on) n.textContent='每天一則，內容會跟著你的到期數變。'; }
+}
+$('#remindOn').onchange=()=>{ const r=remindCfg(); r.on=$('#remindOn').checked; r.asked=true; remindSave(r); renderRemindRow(); scheduleReminder(); };
+$('#remindTime').onchange=()=>{ const r=remindCfg(); r.h=+$('#remindTime').value; remindSave(r); if(r.on) scheduleReminder(); };
+$('#remindYes').onclick=()=>{ const d=new Date(); const r=remindCfg(); r.on=true; r.asked=true; r.h=d.getHours(); r.m=Math.round(d.getMinutes()/5)*5%60; remindSave(r); $('#remindAsk').classList.add('hidden'); scheduleReminder(); exToast(`每天 ${String(r.h).padStart(2,'0')}:${String(r.m).padStart(2,'0')} 提醒你`); };
+$('#remindNo').onclick=()=>{ const r=remindCfg(); r.asked=true; remindSave(r); $('#remindAsk').classList.add('hidden'); };
 $('#moreClose').onclick=()=>$('#moreSheet').classList.add('hidden');
 document.querySelectorAll('#moreSheet .util button, #moreSheet .reviewlink').forEach(b=>b.addEventListener('click',()=>$('#moreSheet').classList.add('hidden')));
 function finishStudy(){$('#study').classList.add('hidden');$('#done').classList.remove('hidden');
   $('#doneArt').innerHTML=pengu('happy',132);
+  { const r=remindCfg(); const a=$('#remindAsk'); if(a) a.classList.toggle('hidden', !(IS_NATIVE && !r.on && !r.asked && Object.keys(DAYS||{}).length>=2)); }
   { const h=$('#doneHanko'); if(h){ h.classList.remove('stamp'); void h.offsetWidth; h.classList.add('stamp'); } }
   /* 標題：待再練清空（或這一輪本來就沒有）→「今天的份，做完了」；
      使用者選了「先完成，稍後再練」、還留著待再練的卡 →「這一輪完成了」。
@@ -2733,7 +2778,7 @@ function finishStudy(){$('#study').classList.add('hidden');$('#done').classList.
   const dueLeftToday=_cards.filter(c=>{const s=srsGet(c.id);return s&&s.due<todayEnd;}).length;   // 已逾期＋今天稍後到期
   const stillDueToday = dueLeftToday>0 || dueNow()>0;
   $('#doneTitle').textContent = (deferredRetry || stillDueToday) ? '這一輪完成了' : '今天的份，做完了';
-  $('#doneMsg').textContent=`本輪練習 ${sessionCardCount} 個單字・作答 ${sessionAnswers} 次`;
+  $('#doneMsg').textContent=`本輪練習 ${sessionCardCount} 個${CFG.deck==='KANA'?'假名':'單字'}・作答 ${sessionAnswers} 次`;
   // B7：用「本地日曆的明天」整天當區間，而不是 now()+24 小時——待再練的卡 due 是
   // now()+60000（一分鐘後），原本的滾動窗會把它算成「明天」；反過來，現在是早上時，
   // 下午才到期、超過 24 小時窗的今日已逾期卡又會被漏掉不計。
@@ -2742,7 +2787,8 @@ function finishStudy(){$('#study').classList.add('hidden');$('#done').classList.
     ? `今天還有 ${dueLeftToday} 張沒清${dueTomorrow>0?`・明天再加 ${dueTomorrow} 張`:''}`
     : (dueTomorrow>0 ? `明天有 ${dueTomorrow} 張等你複習` : '明天沒有要複習的，來學新字吧');
   pushWidget();
-  maybeAskRating();}
+  if(sessionAnswers>=5 && !deferredRetry && RETRY.length===0 && $('#remindAsk').classList.contains('hidden')) maybeAskRating();   // 有待再練或剛在問提醒時不打擾（Codex 產品審查 4）
+}
 
 /* ---------- saved example sentences ---------- */
 let curSent=[];
@@ -2764,9 +2810,12 @@ function showSentences(){
   $('#sentSpeed').style.display=(curSent.length&&HAS_AUDIO)?'':'none';
   $('#sentSpeed').innerHTML=I_SPK+' 語速 '+exSpeed()+'×';
   $('#sentList').innerHTML = curSent.length
-    ? curSent.map(it=>`<div class="ex"><div class="extext"><span class="exnl" data-pl="${esc(it.nl).replace(/"/g,'&quot;')}" data-rb="${esc(it.rb||'').replace(/"/g,'&quot;')}">${exBody(it.nl,it.rb)}</span><span class="exzh">${esc(it.zh||'')}</span></div>${HAS_AUDIO?`<button class="exaud" onclick="play('${it.k}',${it.cid})">${I_SPK}</button>`:''}<button class="exbk on" onclick="toggleExStar(${it.cid},'${it.k}');this.closest('.ex').remove()">${I_BK}</button></div>`).join('')
-    : '<p style="text-align:center;color:var(--muted);padding:46px 20px">還沒有收藏的句子。<br>複習時點句子右邊的 🔖 就能收藏，方便之後專門複習、連播練聽力。</p>';
+    ? curSent.map(it=>`<div class="ex"><div class="extext"><span class="exnl" data-pl="${esc(it.nl).replace(/"/g,'&quot;')}" data-rb="${esc(it.rb||'').replace(/"/g,'&quot;')}">${exBody(it.nl,it.rb)}</span><span class="exzh">${esc(it.zh||'')}</span></div>${HAS_AUDIO?`<button class="exaud" onclick="play('${it.k}',${it.cid})">${I_SPK}</button>`:''}${sentGramBtn(it)}<button class="exbk on" onclick="toggleExStar(${it.cid},'${it.k}');this.closest('.ex').remove()">${I_BK}</button></div>`).join('')
+    : '<p style="text-align:center;color:var(--muted);padding:46px 20px">還沒有收藏的句子。<br>複習時點例句下面的「☆ 收藏」就能收藏，之後可以在這裡專門複習、連播練聽力、開解說。</p>';
 }
+/* 收藏句直接開同一句的解說（原本要回去搜那個字）；標籤沿用卡背那顆，試看額度算法一致 */
+function sentGramBtn(it){ const c=cardById(it.cid); if(!c||!GRAMMAR_FILE||!hasGram(c)) return ''; const exKey=exGramKey(it.k); const locked=gramLocked(c,c.id+':'+exKey);
+  return `<button class="exaud gramlink${locked?' locked':''}" title="文法解說" onclick="showGram(${c.id},'${exKey}')">${locked?'🔒':'📖'}</button>`; }
 function playSentList(){
   if(!HAS_AUDIO||!curSent.length)return;
   if(BLAST_ACTIVE)return;
