@@ -596,6 +596,8 @@ mark.btarget{background:#fff0c2;color:inherit;border-radius:4px;padding:0 2px}
 .reviewlink{color:var(--blue)}
 /* 首頁：同一件事不要說三次——牌組 chip 只留名稱；hero 下方的範圍行拿掉 */
 #scopeLine{display:none}
+.hero{display:none}
+.mbar{height:4px;border-radius:99px;background:var(--line);margin-top:8px;overflow:hidden}.mbar i{display:block;height:100%;width:0;border-radius:99px;background:var(--orange);transition:width .5s}
 .hero{position:relative;overflow:hidden}.hero>*{position:relative;z-index:1}.hero::after{content:'';position:absolute;inset:0;z-index:0;opacity:.5;pointer-events:none;background-image:radial-gradient(circle at 0 100%,transparent 30%,rgba(255,255,255,.06) 31%,rgba(255,255,255,.06) 40%,transparent 41%),radial-gradient(circle at 100% 100%,transparent 30%,rgba(255,255,255,.06) 31%,rgba(255,255,255,.06) 40%,transparent 41%),radial-gradient(circle at 50% 100%,transparent 30%,rgba(255,255,255,.06) 31%,rgba(255,255,255,.06) 40%,transparent 41%);background-size:44px 22px;background-position:0 0,0 0,22px 0}</style>
 </head>
 <script>
@@ -3070,10 +3072,12 @@ function mascotProgress(){
   const h=new Date().getHours(), cards=deckCards(), due=dueNow(), st=STAT.streak||0;
   const ids=new Set(STAT.todayIds||[]); const done=cards.filter(c=>ids.has(c.id)).length;
     const gap = STAT.lastDay ? Math.round((new Date(todayStr())-new Date(STAT.lastDay))/DAY) : 0;
+  const newN=Math.min(newLeftToday(),newCount()), reviewN=Math.max(0,due-newN);
   const main = due===0 ? (done>0?`今天 ${done} 張做完了 ✓`:'今天沒有要複習的') : (done>0?`今天 ${done}／${done+due} 張`:`今天要做 ${due} 張`);
-  const sub = `${deckLabel()}${st>1?`・連續 ${st} 天`:''}${due>0&&done>0?`・還剩 ${due} 張`:''}`;   // 已學 N／M 在牌組 chip 已經有，不重複
+  const sub = (due>0?`新字 ${newN}・複習 ${reviewN}`:'明天再來')+(st>1?`・連續 ${st} 天`:'');   // 牌組名在下面的 chip，不重複
+  const pct = (done+due)>0 ? Math.round(100*done/(done+due)) : 0;
   const face = (h>=23||h<5) ? 'sleepy' : gap>=3 ? 'happy' : due===0 ? 'happy' : due>=60 ? 'think' : 'idle';
-  return [main, sub, face];
+  return [main, sub, face, pct];
 }
 /* 點企鵝：講一個單字（日文＋讀音＋中文）並發音；再點換下一個。優先講今天到期的，其次最近學會的，再來隨機。5 秒後回到進度。 */
 let SAY_I=0, SAY_POOL=[], POKE_T=null;
@@ -3098,9 +3102,9 @@ function pokeMascot(){ mascotSayWord(); }
 function renderMascot(){
   const a=$('#mascotArt'), b=$('#mascotSay'); if(!a||!b) return;
   if(POKE_T) return;   // 正在戳，2.6 秒後會自己回來
-  const [main,sub,face]=mascotProgress();
+  const [main,sub,face,pct]=mascotProgress();
   if(a.dataset.face!==face){ a.innerHTML=pengu(face,76); a.dataset.face=face; }   // 表情沒變就留著原本的 SVG，不然每次重繪首頁眨眼都從頭數（Codex 5）
-  b.innerHTML=`${esc(main)}<small>${esc(sub)}</small>`;
+  b.innerHTML=`${esc(main)}<small>${esc(sub)}</small><div class="mbar"><i style="width:${pct}%"></i></div>`;
   if(!a.dataset.poke){ a.dataset.poke='1'; a.onclick=pokeMascot; a.style.cursor='pointer'; a.setAttribute('role','button'); a.setAttribute('tabindex','0'); a.setAttribute('aria-label','點企鵝聽一個單字');
     a.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); pokeMascot(); } }; }
   const r=$('#mascotRecent'); if(!r) return;
