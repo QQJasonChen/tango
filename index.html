@@ -930,7 +930,7 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
     <div class="sheet">
       <div class="grip"></div>
       <h2 style="margin-bottom:12px">⋯ 更多</h2>
-      <div class="util" style="grid-template-columns:1fr;gap:8px">
+      <div class="util">
         <button id="myExBtn"><svg class="ic" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#16273f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-6-4.2L6 21z"/></svg><b>收藏句</b><em id="myExN"></em></button>
         <button id="exportBtn"><svg class="ic" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#16273f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m8 7 4-4 4 4"/><path d="M4 14v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/></svg><b>匯出</b><em>Markdown</em></button>
         <button id="syncBtn"><svg class="ic" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#3f8f5f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4 4 0 0 1-.4-8A5.5 5.5 0 0 1 17 10.4 3.8 3.8 0 0 1 16.5 18z"/><path d="m9.5 14.5 1.8 1.8 3.4-3.6"/></svg><b>備份</b><em>進度轉移</em></button>
@@ -1718,6 +1718,7 @@ function gramBtnLabel(card, exKey, st){
   if(isPro()) return '文法解說';
   if(gramFree(card.id)) return '文法解說・免費';
   st=st||tasteState(); const key=card.id+':'+exKey;
+  if(!canTaste(key,st)) return '🔒 解鎖解說';   // 網頁版沒有試看（Codex 6-5）
   if(st.seen.indexOf(key)>=0) return '重看解說・不扣次數';
   const left=Math.max(0,tasteAvail(st,key)); return left>0 ? `試看解說・今日剩 ${left} 句` : '🔒 解鎖解說';
 }
@@ -1753,7 +1754,7 @@ function exOpsRow(card, k){
 /* 只刷「看得見」的按鈕（隱藏頁面重新顯示時本來就會整頁重畫）；
    試看狀態與權益一輪只讀一次，卡片用 id 索引——Codex 壓測過原版：1,000 顆鈕 2,600 萬次比對。 */
 function refreshGramButtons(){
-  const btns=document.querySelectorAll('.exopbtn.gram[data-gcard]'); if(!btns.length) return;
+  const btns=document.querySelectorAll('.exopbtn.gram[data-gcard],.gramlink[data-gcard]'); if(!btns.length) return;
   const st=(IS_NATIVE&&!isPro())?tasteState():null;
   btns.forEach(btn=>{
     if(btn.offsetParent===null) return;
@@ -1762,7 +1763,7 @@ function refreshGramButtons(){
     const locked=gramLocked(card,cardId+':'+exKey,st);
     btn.classList.toggle('locked',locked);
     btn.title = locked?'N3 以上的文法解說需解鎖':'文法解說';
-    btn.textContent = gramBtnLabel(card,exKey,st);
+    btn.textContent = btn.classList.contains('gramlink') ? (locked?'🔒':'📖') : gramBtnLabel(card,exKey,st);   // 收藏句的小圖示也跟額度走（Codex 6-8）
   });
 }
 let GRAM_REQ=0;
@@ -2783,7 +2784,8 @@ $('#moreBtn').onclick=()=>{ renderNewPerDaySelect(); renderRemindRow(); $('#more
 function remindCfg(){ const r=CFG.remind||{}; return {on:!!r.on, h:Number.isInteger(r.h)?r.h:20, m:Number.isInteger(r.m)?r.m:0, asked:!!r.asked}; }
 function remindSave(r){ CFG.remind=r; LS.set('ja_cfg',CFG); }
 function remindBody(r){
-  try{ const t=new Date(); t.setDate(t.getDate()+1); t.setHours(r.h,r.m,0,0); const cards=deckCards();
+  try{ const t=new Date(); t.setHours(r.h,r.m,0,0); if(t.getTime()<=Date.now()) t.setDate(t.getDate()+1);   // 下一次觸發：今天還沒到就是今天，過了就是明天（Codex 6-4）
+    const cards=deckCards();
     const due=cards.filter(c=>{ const x=srsGet(c.id); return x&&x.due<=t.getTime(); }).length;
     const fresh=Math.min(CFG.newPerDay??15, cards.filter(c=>!srsGet(c.id)).length);
     const n=due+fresh; const st=STAT.streak||0;
@@ -2805,13 +2807,14 @@ window.onNotifyStatus=function(o){
 function renderRemindRow(){
   const row=$('#remindRow'); if(!row) return; if(!IS_NATIVE){ row.classList.add('hidden'); return; }
   row.classList.remove('hidden'); const r=remindCfg();
-  const sel=$('#remindTime'); sel.innerHTML=[7,8,9,12,18,19,20,21,22].map(h=>`<option value="${h}"${h===r.h?' selected':''}>${String(h).padStart(2,'0')}:${String(r.m).padStart(2,'0')}</option>`).join('');
+  const hs=[7,8,9,12,18,19,20,21,22]; if(hs.indexOf(r.h)<0){ hs.push(r.h); hs.sort((a,b)=>a-b); }   // 完成頁接受的時刻不在清單裡也要顯示正確（Codex 6-3）
+  const sel=$('#remindTime'); sel.innerHTML=hs.map(h=>`<option value="${h}"${h===r.h?' selected':''}>${String(h).padStart(2,'0')}:${String(r.m).padStart(2,'0')}</option>`).join('');
   $('#remindOn').checked=r.on;
   const n=$('#remindNote'); if(n){ n.classList.toggle('hidden',!r.on); if(r.on) n.textContent='每天一則，內容會跟著你的到期數變。'; }
 }
 $('#remindOn').onchange=()=>{ const r=remindCfg(); r.on=$('#remindOn').checked; r.asked=true; remindSave(r); renderRemindRow(); scheduleReminder(); };
 $('#remindTime').onchange=()=>{ const r=remindCfg(); r.h=+$('#remindTime').value; remindSave(r); if(r.on) scheduleReminder(); };
-$('#remindYes').onclick=()=>{ const d=new Date(); const r=remindCfg(); r.on=true; r.asked=true; r.h=d.getHours(); r.m=Math.round(d.getMinutes()/5)*5%60; remindSave(r); $('#remindAsk').classList.add('hidden'); scheduleReminder(); exToast(`每天 ${String(r.h).padStart(2,'0')}:${String(r.m).padStart(2,'0')} 提醒你`); };
+$('#remindYes').onclick=()=>{ const d=new Date(); d.setMinutes(Math.round(d.getMinutes()/5)*5,0,0); const r=remindCfg(); r.on=true; r.asked=true; r.h=d.getHours(); r.m=d.getMinutes(); remindSave(r); /* 用 Date 進位，20:58 不會變 20:00（Codex 6-2） */ $('#remindAsk').classList.add('hidden'); scheduleReminder(); exToast(`每天 ${String(r.h).padStart(2,'0')}:${String(r.m).padStart(2,'0')} 提醒你`); };
 $('#remindNo').onclick=()=>{ const r=remindCfg(); r.asked=true; remindSave(r); $('#remindAsk').classList.add('hidden'); };
 $('#moreClose').onclick=()=>$('#moreSheet').classList.add('hidden');
 document.querySelectorAll('#moreSheet .util button, #moreSheet .reviewlink').forEach(b=>b.addEventListener('click',()=>$('#moreSheet').classList.add('hidden')));
@@ -2869,7 +2872,7 @@ function showSentences(){
 }
 /* 收藏句直接開同一句的解說（原本要回去搜那個字）；標籤沿用卡背那顆，試看額度算法一致 */
 function sentGramBtn(it){ const c=cardById(it.cid); if(!c||!GRAMMAR_FILE||!hasGram(c)) return ''; const exKey=exGramKey(it.k); const locked=gramLocked(c,c.id+':'+exKey);
-  return `<button class="exaud gramlink${locked?' locked':''}" title="文法解說" onclick="showGram(${c.id},'${exKey}')">${locked?'🔒':'📖'}</button>`; }
+  return `<button class="exaud gramlink${locked?' locked':''}" data-gcard="${c.id}" data-gkey="${exKey}" title="文法解說" onclick="showGram(${c.id},'${exKey}')">${locked?'🔒':'📖'}</button>`; }
 function playSentList(){
   if(!HAS_AUDIO||!curSent.length)return;
   if(BLAST_ACTIVE)return;
@@ -3055,7 +3058,9 @@ function studyMascot(state, kind){
 }
 function studyMascotFront(){
   if(SM_T){ clearTimeout(SM_T); SM_T=null; }
-  const go=()=>{ SM_T=null; const k = CFG.dir==='listen'?'listen' : (CFG.dir==='type'||CFG.dir==='sentence')?'type' : 'front'; studyMascot('think',k); };
+  const go=()=>{ SM_T=null; if($('#study').classList.contains('hidden')) return;
+    if(revealed){ const c=QUEUE[qi]&&QUEUE[qi].card; studyMascot('idle', (c&&(c.ex||c.ex2))?'back':'backNoEx'); return; }   // 反應期間已翻面：講背面的（Codex 6-7）
+    const k = CFG.dir==='listen'?'listen' : (CFG.dir==='type'||CFG.dir==='sentence')?'type' : 'front'; studyMascot('think',k); };
   const wait=SM_HOLD-Date.now(); if(wait>0) SM_T=setTimeout(go,wait); else go();
 }
 function studyMascotReact(r){
@@ -3073,19 +3078,21 @@ function mascotProgress(){
   const ids=new Set(STAT.todayIds||[]); const done=cards.filter(c=>ids.has(c.id)).length;
     const gap = STAT.lastDay ? Math.round((new Date(todayStr())-new Date(STAT.lastDay))/DAY) : 0;
   const newN=Math.min(newLeftToday(),newCount()), reviewN=Math.max(0,due-newN);
-  const main = due===0 ? (done>0?`今天 ${done} 張做完了 ✓`:'今天沒有要複習的') : (done>0?`今天 ${done}／${done+due} 張`:`今天要做 ${due} 張`);
-  const sub = (due>0?`新字 ${newN}・複習 ${reviewN}`:'明天再來')+(st>1?`・連續 ${st} 天`:'');   // 牌組名在下面的 chip，不重複
-  const pct = (done+due)>0 ? Math.round(100*done/(done+due)) : 0;
+  const _n=now(); const relearn=cards.filter(c=>{ const x=srsGet(c.id); return x&&x.due>_n&&x.due<=_n+60000; }).length;   // 按「沒想起來」一分鐘內會再出現的（Codex 6-1）
+  const main = due===0 ? (relearn>0?`${relearn} 張等一下再練`:(done>0?`今天 ${done} 張做完了 ✓`:'今天沒有要複習的')) : (done>0?`今天 ${done}／${done+due+relearn} 張`:`今天要做 ${due+relearn} 張`);
+  const sub = (due===0&&relearn>0?'按了「沒想起來」的字，一分鐘後會再出現':(due>0?`新字 ${newN}・複習 ${reviewN}`:'明天再來'))+(st>1?`・連續 ${st} 天`:'');   // 牌組名在下面的 chip，不重複
+  const pct = (done+due+relearn)>0 ? Math.round(100*done/(done+due+relearn)) : 0;
   const face = (h>=23||h<5) ? 'sleepy' : gap>=3 ? 'happy' : due===0 ? 'happy' : due>=60 ? 'think' : 'idle';
   return [main, sub, face, pct];
 }
 /* 點企鵝：講一個單字（日文＋讀音＋中文）並發音；再點換下一個。優先講今天到期的，其次最近學會的，再來隨機。5 秒後回到進度。 */
-let SAY_I=0, SAY_POOL=[], POKE_T=null;
+let SAY_I=0, SAY_POOL=[], SAY_KEY='', POKE_T=null;
 function mascotSayWord(){
   const a=$('#mascotArt'), b=$('#mascotSay'); if(!a||!b) return;
+  const key=`${CFG.deck}|${CFG.theme||''}|${CFG.kanaScript||'h'}`; if(key!==SAY_KEY){ SAY_KEY=key; SAY_POOL=[]; SAY_I=0; }   // 換範圍就重建（Codex 6-6）
   if(!SAY_POOL.length||SAY_I>=SAY_POOL.length){
-    const cards=deckCards(); const due=cards.filter(c=>{ const x=srsGet(c.id); return x&&x.due<=now(); });
-    const rec=RECENT.map(cardById).filter(Boolean); const pool=[...due,...rec];
+    const cards=deckCards(); const inDeck=new Set(cards.map(c=>c.id)); const due=cards.filter(c=>{ const x=srsGet(c.id); return x&&x.due<=now(); });
+    const rec=RECENT.map(cardById).filter(c=>c&&inDeck.has(c.id)); const pool=[...due,...rec];
     const seen=new Set(); SAY_POOL=pool.filter(c=>!seen.has(c.id)&&seen.add(c.id)).sort(()=>Math.random()-.5);
     if(!SAY_POOL.length) SAY_POOL=cards.slice().sort(()=>Math.random()-.5).slice(0,12);
     SAY_I=0; }
