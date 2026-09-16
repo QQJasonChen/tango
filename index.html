@@ -276,10 +276,11 @@ body{font-family:-apple-system,'Segoe UI','Noto Sans TC',sans-serif;background:v
   transition:opacity .12s,transform .12s;z-index:5}
 .swipehint .sh-emo{font-size:28px;line-height:1}
 .swipehint small{display:block;font-size:11px;font-weight:600;opacity:.8;margin-top:1px}
-#shLeft{left:14px;color:var(--orange);rotate:-11deg}
-#shRight{right:14px;color:#16a34a;rotate:11deg}
+#shLeft{left:14px;color:#aa5f53;rotate:-11deg}
+#shRight{right:14px;color:#526981;rotate:11deg}
 .swipehint.on{opacity:1;transform:scale(1)}
-.swipehint.far{color:var(--green);font-weight:800}
+#shLeft.far{color:#9b514b}
+#shRight.far{color:var(--green)}
 @keyframes cardpop{from{transform:scale(.94) translateY(10px);opacity:0}to{transform:none;opacity:1}}
 .card.pop{animation:cardpop .22s cubic-bezier(.2,1.3,.4,1)}
 .rate small{display:block;font-size:11px;font-weight:600;opacity:.85;margin-top:2px}
@@ -575,7 +576,10 @@ mark.btarget{background:#fff0c2;color:inherit;border-radius:4px;padding:0 2px}
 .starbtn.on{background:var(--orange-soft);border-color:transparent}
 /* 四顆評分鍵：灰朱兩階（要再練）＋灰靛兩階（想得起來），同一語言 */
 .rate{gap:8px}
-.rate button{box-shadow:none;border-radius:12px;min-height:78px;font-size:13.5px;padding:10px 3px}
+.rate button{box-shadow:none;border-radius:12px;min-height:78px;font-size:13.5px;padding:10px 3px;transition:transform .1s,box-shadow .1s,filter .1s}
+/* 滑動時，會選到的那顆先亮起來——手勢和按鈕講同一套語言 */
+.rate button.arm{transform:translateY(-3px) scale(1.04);box-shadow:0 0 0 3px rgba(255,255,255,.7),0 6px 16px rgba(22,39,63,.22)}
+.rate button:not(.arm){filter:saturate(.92)}
 .r-again{background:#9b514b} .r-hard{background:#aa5f53} .r-good{background:#526981} .r-easy{background:var(--green)}   /* 白字 5.7 / 4.7 / 5.7 / 5.2；「立刻想起」用綠色＝QQ 指定，完全記得要有獎勵感 */
 .rate small{opacity:1}
 /* 五十音表：熟練格退到淡靛＋勾，目前練的那一行淡朱，未開放列實線淡框 */
@@ -714,8 +718,8 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
     <div class="smascot" id="studyMascot" aria-hidden="true"><div class="pg" id="sMascotArt"></div><div class="sbubble" id="sMascotSay"></div></div>
     <div style="text-align:center;margin-top:6px"><span class="chip hidden" id="retryChip" style="color:var(--red)"></span></div>
     <div class="cardstage">
-      <div class="swipehint" id="shLeft"><span class="sh-emo">🙈</span>沒想起來<small>1 分鐘</small></div>
-      <div class="swipehint" id="shRight"><span class="sh-emo">🌱</span>想起來了</div>
+      <div class="swipehint" id="shLeft"><span class="sh-emo">😥</span>勉強想起<small></small></div>
+      <div class="swipehint" id="shRight"><span class="sh-emo">🌱</span>想起來了<small></small></div>
       <div class="card" id="card"></div>
     </div>
     <div id="controls"></div>
@@ -1250,6 +1254,10 @@ let RETRY=[], sessionCardCount=0, sessionAnswers=0, deferredRetry=false;
 /* 一輪最多 20 張到期卡：一週沒開回來有 83 張時，先給做得完的一份，剩的完成頁再接。到期早的先出。 */
 const REVIEW_CHUNK=20; let CHUNK_LEFT=0;
 function buildQueue(){lastSnap=null;SM_MILE={};BLAST_SESSION++;BLAST_ROUND=0;if(BLAST_ACTIVE)blastAbort();const cards=modeCards();const dueAll=cards.filter(c=>{const s=srsGet(c.id);return s&&s.due<=now();}).sort((a,b)=>(srsGet(a.id).due||0)-(srsGet(b.id).due||0));const chunked=dueAll.length>REVIEW_CHUNK;const due=chunked?dueAll.slice(0,REVIEW_CHUNK):dueAll;CHUNK_LEFT=dueAll.length-due.length;const fresh=chunked?[]:cards.filter(c=>!srsGet(c.id)).slice(0,newLeftToday());/* 積壓輪只放到期卡，清完再開新字（Codex 11-1） */const probes=chunked?[]:probeCards(cards);const probeIds=new Set(probes.map(c=>c.id));let q=[...due,...probes,...fresh];for(let i=q.length-1;i>0;i--){const j=Math.floor((Math.sin(i*99.13+q.length)*0.5+0.5)*(i+1));[q[i],q[j]]=[q[j],q[i]];}QUEUE=q.map(c=>({card:c,probe:probeIds.has(c.id)}));qi=0;sessionTotal=QUEUE.length;RETRY=[];sessionCardCount=QUEUE.length;sessionAnswers=0;deferredRetry=false;}
+/* 四個評分的單一定義（emoji／名稱），按鈕、滑動提示、滑動高亮共用一份。
+   手勢＝一條左右光譜：左遠 沒想起來 ← 左近 勉強想起 ｜ 右近 想起來了 → 右遠 立刻想起。
+   滑的時候底下對應那顆按鈕會亮起來，不用背哪個方向是哪個（QQ：四個按鈕不知道怎麼用滑的）。 */
+const RATE_UI={0:{e:'🙈',n:'沒想起來'},3:{e:'😥',n:'勉強想起'},1:{e:'🌱',n:'想起來了'},2:{e:'⚡',n:'立刻想起'}};
 /* 把間隔（天）寫成人看得懂的長度：<1 天講分鐘或小時、<30 天講天、再上去講月或年。
    參考 Anki 的評分列——每顆鍵都標「下次什麼時候再見」，使用者才知道自己在選什麼。 */
 function fmtSpan(days){
@@ -2207,6 +2215,7 @@ function skipCard(){qi++;showCard();}
 function showCard(){
   if(BLAST_ACTIVE) blastAbort('leave');
   stopAllAudio();
+  SWALLOW_UNTIL=0;   // 新卡片：上一張滑動留下的吞擊窗要關掉
   CARD_SHOWN_T=Date.now(); CARD_REVEAL_T=0; RATE_META={shownT:CARD_SHOWN_T,revealT:0,firstT:0,firstOk:null,judge:null,hint:false};
   if(qi>=QUEUE.length)return afterRound();
   revealed=false;
@@ -2368,7 +2377,7 @@ function revealBack(autoRate,extraTop){
   const ih=previewInterval(s,3), ig=previewInterval(s,1), ie=previewInterval(s,2);
   /* 第一次翻面（一生一次）在三鍵上方多講一句在選什麼，之後不再出現，免得每張卡都要看。 */
   const tipShown=LS.get('ja_tip_rate',0);
-  const rateTip = tipShown ? '' : '<div class="hintline" style="margin-top:0">照「看答案之前」記不記得來選，第一次選「沒想起來」很正常</div>';
+  const rateTip = tipShown ? '' : '<div class="hintline" style="margin-top:0">照「看答案之前」記不記得來選。也可以左右滑卡片：滑越遠＝越極端，底下會亮出你選到的那一顆</div>';
   if(!tipShown) LS.set('ja_tip_rate',1);
   $('#controls').innerHTML=`${rateTip}<div class="rate">
     <button class="r-again" data-r="0"><i>🙈</i>沒想起來<small>1 分鐘</small></button>
@@ -2764,25 +2773,39 @@ $('#rpDoneBtn').onclick=finishRetryLater;
  *
  * 只在翻開答案後才能滑。沒看答案就評分沒有意義，而且會讓誤觸直接改掉 SRS 排程。
  */
+/* 滑動放手時瀏覽器會補一個 click，會誤觸卡片上的按鈕，所以短時間內吃掉它。
+   用時間窗而不是布林旗標：舊寫法在「滑動評分→換卡」後會殘留，把下一張卡的第一次點擊吃掉（要點兩下才翻面）。 */
+let SWALLOW_UNTIL=0;
 function initSwipe(){
   const stage=$('.cardstage'), el=$('#card');
   if(!stage||!el||stage.dataset.swipeReady)return;
   stage.dataset.swipeReady='1';                  // 只綁一次，showCard 每張都會呼叫
   const L=$('#shLeft'), R=$('#shRight');
-  const TH=88; let TH2=200, lastFar=false;       // 滑超過 TH 算數；右滑超過 TH2＝立刻想起（QQ：四段評分要能用手勢）。TH2 依卡寬算，320px 螢幕也滑得到（Codex 7-6）
-  let x0=0,y0=0,dx=0,axis=null,swallowClick=false;
+  const TH=88; let TH2=200, lastR=null;          // 超過 TH 算數；超過 TH2 算「遠」。TH2 依卡寬算，320px 螢幕也滑得到（Codex 7-6）
+  let x0=0,y0=0,dx=0,axis=null;
+
+  /* 滑到哪一段＝選哪一個：左遠 0、左近 3、右近 1、右遠 2 */
+  const ratingOf=(d)=>{ const a=Math.abs(d); if(a<TH) return null; const far=a>=TH2; return d<0 ? (far?0:3) : (far?2:1); };
+  const spanOf=(r)=>{ if(r===0) return '1 分鐘'; const c=QUEUE[qi]&&QUEUE[qi].card; if(!c) return ''; try{ return fmtSpan(previewInterval(famStartState(c.id,curFam()),r)); }catch(e){ return ''; } };
+  const armButtons=(r)=>{ document.querySelectorAll('.rate button').forEach(b=>b.classList.toggle('arm', r!==null && +b.dataset.r===r)); };
 
   const paint=()=>{
     // 轉一點角度，手感才不像在推一個方塊
     el.style.transform=`translateX(${dx}px) rotate(${dx/22}deg)`;
     el.style.opacity=String(Math.max(.45,1-Math.abs(dx)/460));
-    const hit=Math.abs(dx)>=TH, far=dx>=TH2;
+    const r=ratingOf(dx);
     L.classList.toggle('on',dx<-14); R.classList.toggle('on',dx>14);
-    L.style.transform=R.style.transform=hit?'scale(1.06)':'';
-    if(far!==lastFar){ lastFar=far; const c=QUEUE[qi]&&QUEUE[qi].card; const st=c?famStartState(c.id,curFam()):null;
-      const sp=st?fmtSpan(previewInterval(st,far?2:1)):''; R.innerHTML = (far?'<span class="sh-emo">⚡</span>立刻想起':'<span class="sh-emo">🌱</span>想起來了')+(sp?`<small>${sp}</small>`:''); R.classList.toggle('far',far); }
+    L.style.transform=R.style.transform=(r!==null)?'scale(1.06)':'';
+    if(r!==lastR){
+      lastR=r; armButtons(r);
+      if(r!==null){ const u=RATE_UI[r], side=(dx<0?L:R), other=(dx<0?R:L);
+        other.classList.remove('far');
+        side.innerHTML=`<span class="sh-emo">${u.e}</span>${u.n}<small>${spanOf(r)}</small>`;
+        side.classList.toggle('far', Math.abs(dx)>=TH2); }
+    }
   };
-  const clear=()=>{L.classList.remove('on');R.classList.remove('on');R.classList.remove('far');lastFar=false;R.innerHTML='<span class="sh-emo">🌱</span>想起來了';};
+  const clear=()=>{L.classList.remove('on','far');R.classList.remove('on','far');lastR=null;armButtons(null);
+    L.innerHTML='<span class="sh-emo">😥</span>勉強想起<small></small>'; R.innerHTML='<span class="sh-emo">🌱</span>想起來了<small></small>';};
   /* 系統取消手勢（來電、通知中心拉下來）：只回彈，不評分（Codex 7-5） */
   const cancel=()=>{ if(!x0&&!dx) return; el.classList.remove('dragging','fly','settle'); el.style.transform=''; el.style.opacity=''; clear(); x0=0; dx=0; axis=null; };
 
@@ -2796,7 +2819,7 @@ function initSwipe(){
       axis=Math.abs(mx)>Math.abs(my)*1.2?'x':'y';
       if(axis==='y'){el.classList.remove('dragging');x0=0;return;}  // 交還給捲動
     }
-    dx=mx; swallowClick=true;
+    dx=mx; SWALLOW_UNTIL=Date.now()+350;
     if(ev&&ev.cancelable)ev.preventDefault();   // 需要 passive:false 才有效
     paint();
   };
@@ -2809,7 +2832,7 @@ function initSwipe(){
       el.style.transform=`translateX(${dir*window.innerWidth*1.1}px) rotate(${dir*22}deg)`;
       el.style.opacity='0';
       clear();
-      const r=dir<0?0:(dx>=TH2?2:1);
+      const r=ratingOf(dx);
       { const at=qi, cid=QUEUE[qi]&&QUEUE[qi].card.id;   // 180ms 內按結束／換佇列，舊回呼不能再評分（Codex 3-1）
         setTimeout(()=>{ if($('#study').classList.contains('hidden')||qi!==at||!QUEUE[qi]||QUEUE[qi].card.id!==cid) return; rate(r); },180); }
     }else{
@@ -2830,7 +2853,7 @@ function initSwipe(){
     const mu=()=>{end();document.removeEventListener('mousemove',mm);document.removeEventListener('mouseup',mu);};
     document.addEventListener('mousemove',mm);document.addEventListener('mouseup',mu);});
   // 拖曳完手指放開會補一個 click，會誤觸卡片上的按鈕，要吃掉
-  el.addEventListener('click',e=>{ if(swallowClick){e.stopPropagation();e.preventDefault();swallowClick=false;} },true);
+  el.addEventListener('click',e=>{ if(Date.now()<SWALLOW_UNTIL){e.stopPropagation();e.preventDefault();SWALLOW_UNTIL=0;} },true);
 }
 
 /* ── App Store 評分請求 ───────────────────────────────────────────
