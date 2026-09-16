@@ -13,7 +13,10 @@
   --shadow:0 3px 12px rgba(22,39,63,.05);
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html{-webkit-text-size-adjust:100%}
+html{-webkit-text-size-adjust:100%;overflow-x:clip}
+/* 滑卡時卡片會移出右邊界，沒有這行整份文件會被撐寬、整個介面可以左右晃（QQ：介面會有點小跑掉）。
+   用 clip 不是 hidden：hidden 會讓 body 變成捲動容器，連帶影響垂直捲動與固定定位。 */
+body{overflow-x:clip}
 body{font-family:-apple-system,'Segoe UI','Noto Sans TC',sans-serif;background:var(--bg);color:var(--text);
   line-height:1.6;overscroll-behavior:none;
   padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
@@ -95,6 +98,16 @@ body{font-family:-apple-system,'Segoe UI','Noto Sans TC',sans-serif;background:v
 .lvc{background:#fff;border:1.5px solid var(--line);border-radius:15px;padding:11px 12px 14px;
   display:flex;align-items:center;gap:10px;cursor:pointer;box-shadow:var(--shadow);position:relative;transition:.12s}
 .lvc.on{border-color:var(--orange);box-shadow:0 0 0 3px rgba(208,70,59,.10),var(--shadow)}
+/* 牌組／主題卡的「看單字」入口。日文版買家回報：點牌組只會選取，看不出發生什麼事，
+   他以為「點不進去」。牌組是選範圍、這顆才是開清單。日文版同一個缺陷。 */
+.lvc,.thc,.spc{position:relative}
+.lvc .peek,.thc .peek,.spc .peek{position:absolute;top:2px;right:2px;width:30px;height:30px;padding:0;border:0;
+  border-radius:9px;background:transparent;font-size:13px;line-height:30px;cursor:pointer;opacity:.28}
+.lvc.on .peek,.thc.on .peek,.spc.on .peek{opacity:.85}
+.lvc .peek:active,.thc .peek:active,.spc .peek:active{background:rgba(22,39,63,.12);opacity:1}
+.peekRow{width:100%;margin:10px 0 2px;padding:12px;border:1px solid var(--line);border-radius:12px;
+  background:#fff;color:var(--navy);font-size:14px;font-weight:700;cursor:pointer}
+.peekRow:active{background:rgba(22,39,63,.05)}
 .lvc .t b{display:block;font-size:14px;font-weight:800;color:var(--navy);line-height:1.25}
 .lvc .t span{font-size:10.5px;color:var(--muted);font-weight:600}
 .lvp{position:absolute;left:12px;right:12px;bottom:7px;height:3px;background:var(--line);border-radius:9px;overflow:hidden}
@@ -578,7 +591,7 @@ mark.btarget{background:#fff0c2;color:inherit;border-radius:4px;padding:0 2px}
 .rate{gap:8px}
 .rate button{box-shadow:none;border-radius:12px;min-height:78px;font-size:13.5px;padding:10px 3px;transition:transform .1s,box-shadow .1s,filter .1s}
 /* 滑動時，會選到的那顆先亮起來——手勢和按鈕講同一套語言 */
-.rate button.arm{transform:translateY(-3px) scale(1.04);box-shadow:0 0 0 3px rgba(255,255,255,.7),0 6px 16px rgba(22,39,63,.22)}
+.rate button.arm{transform:translateY(-4px);box-shadow:0 0 0 3px rgba(255,255,255,.7),0 7px 18px rgba(22,39,63,.24)}
 .rate button:not(.arm){filter:saturate(.92)}
 .r-again{background:#9b514b} .r-hard{background:#aa5f53} .r-good{background:#526981} .r-easy{background:var(--green)}   /* 白字 5.7 / 4.7 / 5.7 / 5.2；「立刻想起」用綠色＝QQ 指定，完全記得要有獎勵感 */
 .rate small{opacity:1}
@@ -681,6 +694,7 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
       <div class="section-t">主題 <s id="themeN"></s></div>
       <div class="thgrid" id="themeChips"></div>
       <button class="subtoggle" id="themeMoreBtn"></button>
+      <button class="peekRow" id="peekRow"></button>
 
       <div onclick="ownerTap()" style="text-align:center;color:var(--muted);font-size:11.5px;margin-top:8px;letter-spacing:.02em;cursor:default;-webkit-user-select:none;user-select:none">
         每個字下方有假名讀音＋羅馬拼音</div>
@@ -799,6 +813,7 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
     <div class="top" style="padding:14px 0">
       <button class="backlink" id="browseBack" style="padding:0">‹ 返回</button>
       <span class="spacer"></span>
+      <button class="chip scopechip" id="browseExpand" style="margin-right:8px"></button>
       <span class="chip scopechip" id="browseScope"></span>
     </div>
     <div class="bsearch">
@@ -2092,12 +2107,14 @@ function renderHome(){
     const pct=cards.length?Math.round(done/cards.length*100):0;
     return `<div class="lvc ${CFG.deck===k?'on':''}" data-deck="${k}">${ico(DECK_IC[k],30)}`+
            `<div class="t"><b>${nm}</b><span>${numFmt(cards.length)} 字</span></div>`+
-           `<div class="lvp"><i style="width:${pct}%"></i></div></div>`;
+           `<div class="lvp"><i style="width:${pct}%"></i></div>`+
+           `<button class="peek" data-peek="deck:${k}" title="看這個牌組有哪些單字" aria-label="看 ${nm} 有哪些單字">📖</button></div>`;
   }).join('');
   $('#specialChips').innerHTML=specials.map(L=>{
     const cards=deckCardsOf(L.k);
     const label = L.k==='all' ? `${L.name} <s>${numFmt(cards.length)} 張卡</s>` : `${L.name} <s>${numFmt(cards.length)}</s>`;
-    return `<div class="spc ${CFG.deck===L.k?'on':''}" data-deck="${L.k}">${ico(DECK_IC[L.k],24)}${label}</div>`;
+    return `<div class="spc ${CFG.deck===L.k?'on':''}" data-deck="${L.k}">${ico(DECK_IC[L.k],24)}${label}`+
+           `<button class="peek" data-peek="deck:${L.k}" title="看這個牌組有哪些單字" aria-label="看 ${L.name} 有哪些單字">📖</button></div>`;
   }).join('');
   // 「9,146 個單字＋92 張假名卡」：牌組區的說明行，數字一律算出來、不寫死
   const kanaTotal=VOCAB.filter(c=>levelOf(c)==='KANA').length;
@@ -2133,7 +2150,8 @@ function renderHome(){
   $('#themeChips').innerHTML=shownThemes.map(t=>{
     const cnt=lv.filter(c=>c.theme===t).length, empty=cnt===0;
     const g=ico(THEME_IC[t]||'',28);
-    return `<div class="thc ${CFG.theme===t?'on':''}${empty?' empty':''}" data-theme="${esc(t)}">${g}<b>${esc(t)}</b><s>${empty?'這一級沒有':numFmt(cnt)}</s></div>`;
+    return `<div class="thc ${CFG.theme===t?'on':''}${empty?' empty':''}" data-theme="${esc(t)}">${g}<b>${esc(t)}</b><s>${empty?'這一級沒有':numFmt(cnt)}</s>`+
+           (empty?'':`<button class="peek" data-peek="theme:${esc(t)}" title="看這個主題有哪些單字" aria-label="看 ${esc(t)} 有哪些單字">📖</button>`)+`</div>`;
   }).join('');
   document.querySelectorAll('#themeChips .thc').forEach(el=>el.onclick=()=>{
     const t=el.dataset.theme;
@@ -2146,6 +2164,15 @@ function renderHome(){
   $('#themeMoreBtn').onclick=()=>{ themeExpanded=!themeExpanded; renderHome(); };
   updateProCardCta();
   // 無障礙：牌組/主題 chip 本是 div，讓 VoiceOver/鍵盤也能選（Enter/空白＝點擊）
+  /* 📖：選定這個牌組／主題並直接開單字清單（範圍已鎖定）。
+     一定要 stopPropagation——它在卡片裡面，不擋的話外層的「選取」也會跑一次。 */
+  document.querySelectorAll('#levelChips .peek,#specialChips .peek,#themeChips .peek').forEach(el=>el.onclick=e=>{
+    e.stopPropagation();
+    const v=el.dataset.peek||'';
+    if(v.startsWith('theme:')) CFG.theme=v.slice(6); else CFG.deck=v.slice(5);
+    LS.set('ja_cfg',CFG); openBrowse(true);
+  });
+  { const pr=$('#peekRow'); if(pr) pr.textContent = `📖 看「${deckLabel()}」的 ${numFmt(deckCards().length)} 個單字`; }
   document.querySelectorAll('#levelChips .lvc,#specialChips .spc,#themeChips .thc').forEach(el=>{
     el.setAttribute('role','button'); el.setAttribute('tabindex','0');
     el.setAttribute('aria-pressed', el.classList.contains('on')?'true':'false');
@@ -3123,6 +3150,17 @@ function deckLabel(){
   if(CFG.theme) base+='・'+CFG.theme;
   return base;
 }
+/* 一次渲染上萬列會卡死，所以分頁；但「顯示前 200 就沒了」正是買家撞到的牆，
+   底部要能繼續、而且滾到底自動接上。展開模式一列的 DOM 量大好幾倍，頁要更小。 */
+const BROWSE_PAGE=200; let BROWSE_LIMIT=BROWSE_PAGE; let _browseIO=null;
+let BROWSE_EXPAND = LS.get('ja_bexp', false);
+function browsePageSize(){ return BROWSE_EXPAND ? 60 : BROWSE_PAGE; }
+function updateExpandChip(){
+  const el=$('#browseExpand'); if(!el) return;
+  el.textContent = BROWSE_EXPAND ? '收合內容' : '展開全部內容';
+  el.onclick=()=>{ BROWSE_EXPAND=!BROWSE_EXPAND; LS.set('ja_bexp',BROWSE_EXPAND);
+                   updateExpandChip(); renderBrowse(true); };
+}
 function browseBase(){ return BROWSE_SCOPED ? deckCards() : VOCAB; }
 function browseMatch(c,q){
   if(!q)return true;
@@ -3165,24 +3203,51 @@ function updateScopeChip(){
   if(CFG.deck==='all' && !CFG.theme){el.textContent='全部範圍';el.classList.remove('scopechip');el.onclick=null;return;}
   el.classList.add('scopechip');
   el.textContent=(BROWSE_SCOPED?deckLabel():'全部')+' ▾';
-  el.onclick=()=>{BROWSE_SCOPED=!BROWSE_SCOPED;updateScopeChip();renderBrowse();};
+  el.onclick=()=>{BROWSE_SCOPED=!BROWSE_SCOPED;updateScopeChip();renderBrowse(true);};
 }
-function renderBrowse(){
+function renderBrowse(resetLimit, append){
+  if(resetLimit) BROWSE_LIMIT=browsePageSize();
   const raw=($('#browseIn').value||''),q=norm(raw);
   const res=browseBase().filter(c=>browseMatch(c,q));
   if(q)res.sort((a,b)=>browseScore(a,q)-browseScore(b,q));
-  const CAP=200,total=res.length,shown=res.slice(0,CAP);
+  const total=res.length,shown=res.slice(0,BROWSE_LIMIT),rest=total-shown.length;
   $('#browseCount').textContent = q
     ? `${total} 個結果`
-    : `共 ${total} 個單字${total>CAP?`（顯示前 ${CAP}，輸入關鍵字找特定的字）`:''}`;
+    : `共 ${total} 個單字${rest>0?`（已顯示 ${shown.length}，${Math.round(shown.length/total*100)}%）`:'・已全部顯示'}`;
   /* 「常忘單字」在使用者還沒忘過任何字時本來就是空的——那不是搜尋沒結果，
      用「找不到「」」會像壞掉，改成講清楚這個牌組怎麼生成。 */
   const leechEmpty = !q && CFG.deck==='leech' && BROWSE_SCOPED;
-  $('#browseList').innerHTML = shown.length
-    ? shown.map(browseRow).join('')
-    : leechEmpty
-      ? `<div class="bempty">還沒有常忘的字<br><span style="font-size:13px">多次忘記的字會自動放在這裡</span></div>`
-      : `<div class="bempty">找不到「${esc(raw)}」<br><span style="font-size:13px">換個關鍵字試試${CFG.deck!=='all'&&BROWSE_SCOPED?'，或點右上角切換成「全部」範圍':''}</span></div>`;
+  const _row=c=>BROWSE_EXPAND ? browseRow(c).replace(/<\/div>$/, browseDetail(c)+'</div>') : browseRow(c);
+  const _tail = rest>0
+    ? `<button class="subtoggle" id="browseMore" style="margin:12px 0 4px">繼續往下滑，或點這裡（還有 ${rest} 個）</button>`
+    : `<div id="browseEnd" style="text-align:center;color:var(--muted);font-size:13px;padding:14px 0 4px">已經是這一組的最後一個字了</div>`;
+  const _list=$('#browseList'), _prev=+(_list.dataset.n||0);
+  if(append && _prev>0 && _prev<shown.length){
+    /* 只 append 新的那批：整個 innerHTML 重畫在展開模式下等於每次重建數十萬像素的 DOM，
+       手機的 WKWebView 會卡；收合模式下也會把使用者手動點開的列一起洗掉。 */
+    const _mb=_list.querySelector('#browseMore'); if(_mb) _mb.remove();
+    const _be=_list.querySelector('#browseEnd'); if(_be) _be.remove();
+    _list.insertAdjacentHTML('beforeend', res.slice(_prev,shown.length).map(_row).join('') + _tail);
+  } else {
+    _list.innerHTML = shown.length
+      ? shown.map(_row).join('') + _tail
+      : leechEmpty
+        ? `<div class="bempty">還沒有常忘的字<br><span style="font-size:13px">多次忘記的字會自動放在這裡</span></div>`
+        : `<div class="bempty">找不到「${esc(raw)}」<br><span style="font-size:13px">換個關鍵字試試${CFG.deck!=='all'&&BROWSE_SCOPED?'，或點右上角切換成「全部」範圍':''}</span></div>`;
+  }
+  _list.dataset.n = shown.length;
+  { const mb=$('#browseMore');
+    if(mb){
+      mb.onclick=()=>{ BROWSE_LIMIT+=browsePageSize(); renderBrowse(false,true); };
+      /* 滾到接近底部自動載下一批：盯這顆按鈕，不自己算 scrollTop，
+         也就不會在「容器捲」與「視窗捲」之間搞錯來源。 */
+      if(_browseIO) _browseIO.disconnect();
+      _browseIO = new IntersectionObserver(es=>{
+        if(es.some(e=>e.isIntersecting)){ BROWSE_LIMIT+=browsePageSize(); renderBrowse(false,true); }
+      }, {rootMargin:'400px'});
+      _browseIO.observe(mb);
+    } else if(_browseIO){ _browseIO.disconnect(); _browseIO=null; }
+  }
 }
 /* ═══════════ 吉祥物：企鵝 ═══════════
    扁平、安靜、幾何：深藍蛋身、一塊米色肚、兩個小點眼、小金嘴、一條朱色圍巾。
@@ -3539,22 +3604,27 @@ function drillClose(silent){ DRILL=null; if(DRILL_T){ clearTimeout(DRILL_T); DRI
 $('#kmDrill').onclick=drillStart;
 $('#kmStudy').onclick=()=>{ CFG.deck='KANA'; CFG.theme=''; LS.set('ja_cfg',CFG); $('#kanamap').classList.add('hidden'); startStudy(); };
 $('#kanaMapBtn').onclick=openKanaMap;
-function openBrowse(){
+function openBrowse(scoped){
   if(BLAST_ACTIVE) blastAbort('leave');
   stopAllAudio();
   $('#home').classList.add('hidden');$('#study').classList.add('hidden');$('#done').classList.add('hidden');$('#sentences').classList.add('hidden');
   $('#browse').classList.remove('hidden');
-  BROWSE_SCOPED = false;   // default: search the whole vocabulary (tap the chip to scope to your deck)
+  // 從牌組／主題的 📖 進來＝只看那一組；從上面的搜尋列進來＝全部字庫
+  BROWSE_SCOPED = !!scoped;
+  BROWSE_LIMIT = browsePageSize();
   $('#browseIn').value='';
   updateScopeChip();
+  updateExpandChip();
   renderBrowse();
   setTimeout(()=>$('#browseIn').focus(),60);
 }
-$('#homeSearch').onclick=openBrowse;
+$('#homeSearch').onclick=()=>openBrowse(false);
+$('#peekRow').onclick=()=>openBrowse(true);
 $('#browseBack').onclick=()=>{$('#browse').classList.add('hidden');renderHome();};
 let _browseT;$('#browseIn').addEventListener('input',()=>{clearTimeout(_browseT);_browseT=setTimeout(renderBrowse,150);});
 $('#browseClear').onclick=()=>{$('#browseIn').value='';renderBrowse();$('#browseIn').focus();};
 $('#browseList').addEventListener('click',e=>{
+  if(BROWSE_EXPAND) return;          // 已全部展開，再點只會收掉它
   const row=e.target.closest('.brow');if(!row)return;
   const open=row.querySelector('.bdetail');
   if(open){open.remove();return;}
