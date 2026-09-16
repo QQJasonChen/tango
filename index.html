@@ -1268,6 +1268,15 @@ let QUEUE=[],qi=0,sessionTotal=0,lastSnap=null,exSeen=new Set();
 let RETRY=[], sessionCardCount=0, sessionAnswers=0, deferredRetry=false;
 /* 一輪最多 20 張到期卡：一週沒開回來有 83 張時，先給做得完的一份，剩的完成頁再接。到期早的先出。 */
 const REVIEW_CHUNK=20; let CHUNK_LEFT=0;
+/* 下一輪的組成。文案一律從這裡算，才不會出現「還有 40 張」但按下去只給 20 張（積壓時這一輪只做到期卡、不發新字）。 */
+function roundPlan(){
+  const cards=modeCards(), _n=now();
+  const dueAll=cards.filter(c=>{const s=srsGet(c.id);return s&&s.due<=_n;}).length;
+  const chunked=dueAll>REVIEW_CHUNK;
+  const probes=chunked?0:probeCards(cards).length;
+  const fresh=chunked?0:Math.min(newLeftToday(), cards.filter(c=>!srsGet(c.id)).length);
+  return {dueAll, chunked, probes, fresh, next: chunked?REVIEW_CHUNK:(dueAll+probes+fresh)};
+}
 function buildQueue(){lastSnap=null;SM_MILE={};BLAST_SESSION++;BLAST_ROUND=0;if(BLAST_ACTIVE)blastAbort();const cards=modeCards();const dueAll=cards.filter(c=>{const s=srsGet(c.id);return s&&s.due<=now();}).sort((a,b)=>(srsGet(a.id).due||0)-(srsGet(b.id).due||0));const chunked=dueAll.length>REVIEW_CHUNK;const due=chunked?dueAll.slice(0,REVIEW_CHUNK):dueAll;CHUNK_LEFT=dueAll.length-due.length;const fresh=chunked?[]:cards.filter(c=>!srsGet(c.id)).slice(0,newLeftToday());/* 積壓輪只放到期卡，清完再開新字（Codex 11-1） */const probes=chunked?[]:probeCards(cards);const probeIds=new Set(probes.map(c=>c.id));let q=[...due,...probes,...fresh];for(let i=q.length-1;i>0;i--){const j=Math.floor((Math.sin(i*99.13+q.length)*0.5+0.5)*(i+1));[q[i],q[j]]=[q[j],q[i]];}QUEUE=q.map(c=>({card:c,probe:probeIds.has(c.id)}));qi=0;sessionTotal=QUEUE.length;RETRY=[];sessionCardCount=QUEUE.length;sessionAnswers=0;deferredRetry=false;}
 /* 四個評分的單一定義（emoji／名稱），按鈕、滑動提示、滑動高亮共用一份。
    手勢＝一條左右光譜：左遠 沒想起來 ← 左近 勉強想起 ｜ 右近 想起來了 → 右遠 立刻想起。
@@ -2216,8 +2225,8 @@ function renderHome(){
   { const b=$('#quizBtn'); if(b){ const pool=quizPool(); const known=pool.filter(c=>SRS[c.id]||Object.values(MSRS).some(m=>m&&m[c.id])).length; b.classList.toggle('hidden', CFG.deck==='KANA' || curEmpty || pool.length<8 || (known+Math.max(0,newLeftToday()))<4); } }   // 出不了 4 題就不顯示入口
   renderMascot();
   $('#startBtn').disabled=due===0;
-  const _rd=reviewDue();
-  $('#startBtn').textContent = curEmpty ? '這個篩選沒有字' : (due===0 ? (relearnSoon.length?'等一下再練':'這牌組複習完了 ✓') : (_rd>REVIEW_CHUNK ? `先複習 ${REVIEW_CHUNK} 張・共 ${_rd} 張待複習` : `開始學習：${deckLabel()}`));
+  const _p=roundPlan();
+  $('#startBtn').textContent = curEmpty ? '這個篩選沒有字' : (due===0 ? (relearnSoon.length?'等一下再練':'這牌組複習完了 ✓') : (_p.chunked ? `先複習 ${REVIEW_CHUNK} 張・共 ${_p.dueAll} 張待複習` : `開始學習：${deckLabel()}`));
   /* 今天的新字配額用完、但這個牌組還有沒學過的字 → 給一個明確的加碼出口。
      預設擋住是為了控制未來的複習量；硬鎖死只會讓人改去別的 App。 */
   const canMore=newLeftToday()===0 && newCount()>0;
@@ -3044,7 +3053,8 @@ function finishStudy(){$('#study').classList.add('hidden');$('#done').classList.
   $('#doneTomorrow').textContent = dueLeftToday>0
     ? `今天還有 ${dueLeftToday} 張沒清${dueTomorrow>0?`・明天再加 ${dueTomorrow} 張`:''}`
     : (dueTomorrow>0 ? `明天有 ${dueTomorrow} 張等你複習` : '明天沒有要複習的，來學新字吧');
-  { const left=dueNow(); const m=$('#doneMore'); if(m){ m.classList.toggle('hidden', !(left>0 && !deferredRetry && RETRY.length===0)); m.textContent=`再來一輪（還有 ${left} 張）`; } }
+  { const p=roundPlan(); const m=$('#doneMore'); if(m){ m.classList.toggle('hidden', !(p.next>0 && !deferredRetry && RETRY.length===0));
+      m.textContent = p.chunked ? `再複習 ${REVIEW_CHUNK} 張（到期還有 ${p.dueAll} 張）` : `再來一輪（還有 ${p.next} 張）`; } }
   pushWidget();
   if(sessionAnswers>=5 && !deferredRetry && RETRY.length===0 && $('#remindAsk').classList.contains('hidden')) maybeAskRating();   // 有待再練或剛在問提醒時不打擾（Codex 產品審查 4）
 }
@@ -3424,8 +3434,8 @@ function renderKanaMap(){
   $('#kmProg').textContent=`${learned} / ${total} 會了`;
   const cur=rows[unl-1].filter(Boolean).join('');
   /* 按鈕要說實話：到期的複習優先、再發目前這一行的新字；什麼都沒有就告訴他下次何時 */
-  { const cards=modeCards(); const due=cards.filter(c=>{const x=srsGet(c.id);return x&&x.due<=now();}).length + probeCards(cards).length;
-    const fresh=Math.min(newLeftToday(), cards.filter(c=>!srsGet(c.id)).length);
+  { const _p=roundPlan(); const cards=modeCards(); const due=_p.chunked?_p.dueAll:(_p.dueAll+_p.probes);
+    const fresh=_p.fresh;
     const b=$('#kmStudy'); b.disabled=false;
     if(due+fresh===0){ const nxt=cards.map(c=>srsGet(c.id)).filter(Boolean).map(x=>x.due).sort((a,b)=>a-b)[0];
       const hrs=nxt?Math.max(1,Math.round((nxt-now())/3600000)):0;
