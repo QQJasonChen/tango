@@ -306,6 +306,15 @@ body{font-family:-apple-system,'Segoe UI','Noto Sans TC',sans-serif;background:v
 .done{text-align:center;padding:54px 24px;display:flex;flex-direction:column;gap:14px;align-items:center;position:relative}
 /* 済＝做完了。蓋章：從大縮到位、微微歪、邊緣略透（像真的印泥）。每次進完成頁重播。 */
 .hanko{position:absolute;top:48px;right:calc(50% - 118px);width:64px;height:64px;border:3px solid var(--orange);border-radius:50%;color:var(--orange);font-family:'Hiragino Mincho ProN','Yu Mincho',serif;font-size:34px;font-weight:700;line-height:58px;text-align:center;transform:rotate(-14deg);opacity:.9;pointer-events:none;box-shadow:inset 0 0 0 1.5px #fff,inset 0 0 0 3px var(--orange)}
+/* 花丸（はなまる）：日本老師在作業上畫的紅圈。只有「今天的份全部做完」才給，
+   一輪完成維持「済」——每次都給就不是獎勵了。 */
+.hanamaru{position:absolute;top:34px;right:calc(50% - 132px);width:96px;height:96px;pointer-events:none;rotate:-8deg}
+.hanamaru svg{width:100%;height:100%;display:block}
+.hanamaru .mru{stroke-dasharray:var(--len);stroke-dashoffset:var(--len)}
+.hanamaru.draw .mru{animation:maru-draw .6s cubic-bezier(.35,.85,.4,1) .25s forwards}
+.hanamaru.draw .mru2{animation-delay:.5s;animation-duration:.5s}
+@keyframes maru-draw{to{stroke-dashoffset:0}}
+@media (prefers-reduced-motion: reduce){.hanamaru.draw .mru{animation:none;stroke-dashoffset:0}}
 .hanko.stamp{animation:hanko-in .42s cubic-bezier(.2,1.4,.4,1) .35s both}
 @keyframes hanko-in{0%{transform:rotate(-14deg) scale(2.2);opacity:0}70%{transform:rotate(-14deg) scale(.94);opacity:.95}100%{transform:rotate(-14deg) scale(1);opacity:.9}}
 @media (prefers-reduced-motion: reduce){.hanko.stamp{animation:none}}
@@ -538,6 +547,10 @@ mark.btarget{background:#fff0c2;color:inherit;border-radius:4px;padding:0 2px}
 @keyframes pg-flap-fast-l{0%,100%{transform:rotate(0)}50%{transform:rotate(38deg)}}
 @keyframes pg-flap-fast-r{0%,100%{transform:rotate(0)}50%{transform:rotate(-38deg)}}
 /* 戳到：同開心，但只跳一下、拍兩下 */
+/* 鞠躬：首頁打完招呼前傾一下。用 .pg-all 轉，腳當支點。 */
+.pg-svg.pg-bow .pg-all{transform-origin:50px 90px;animation:pg-bow 1s cubic-bezier(.3,.8,.35,1) 1}
+@keyframes pg-bow{0%,100%{transform:rotate(0) translateY(0)}30%{transform:rotate(15deg) translateY(2px)}55%{transform:rotate(-3deg)}75%{transform:rotate(4deg)}}
+@media (prefers-reduced-motion: reduce){.pg-svg.pg-bow .pg-all{animation:none}}
 .pg-svg.pg-poke{animation:pg-hop .6s cubic-bezier(.3,.9,.4,1.1) 1, pg-bob 3.6s ease-in-out .6s infinite}
 .pg-svg.pg-poke .pg-wl{animation:pg-flap-fast-l .3s ease-in-out 2}
 .pg-svg.pg-poke .pg-wr{animation:pg-flap-fast-r .3s ease-in-out 2}
@@ -743,6 +756,7 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
   <div id="done" class="done hidden">
     <div class="emoji" id="doneArt"></div>
     <div class="hanko" id="doneHanko" aria-hidden="true">済</div>
+    <div class="hanamaru hidden" id="doneMaru" aria-hidden="true"></div>
     <h2 id="doneTitle">今天的份，做完了</h2>
     <div class="doneJp">お つ か れ さ ま</div>
     <p id="doneMsg">今天的複習完成了</p>
@@ -3031,7 +3045,8 @@ function finishStudy(){$('#study').classList.add('hidden');$('#done').classList.
   if(SESSION_ID){ evPush({v:1,ev:'session_end',t:Date.now(),sid:SESSION_ID,answers:sessionAnswers,cards:sessionCardCount,retry:RETRY.length}); SESSION_ID=null; }
   $('#doneArt').innerHTML=pengu('happy',132);
   { const r=remindCfg(); const a=$('#remindAsk'); if(a) a.classList.toggle('hidden', !(IS_NATIVE && !r.on && !r.asked && Object.keys(DAYS||{}).length>=2)); }
-  { const h=$('#doneHanko'); if(h){ h.classList.remove('stamp'); void h.offsetWidth; h.classList.add('stamp'); } }
+  /* 全部做完給花丸、只完成一輪給済章（見下方 doneTitle 的同一個判斷） */
+  { const h=$('#doneHanko'); if(h){ h.classList.remove('stamp'); void h.offsetWidth; } }
   /* 標題：待再練清空（或這一輪本來就沒有）→「今天的份，做完了」；
      使用者選了「先完成，稍後再練」、還留著待再練的卡 →「這一輪完成了」。
      數字用「本輪」不重複卡數＋本輪作答總次數，不是全日累計——全日統計仍照舊存進
@@ -3044,7 +3059,13 @@ function finishStudy(){$('#study').classList.add('hidden');$('#done').classList.
   const _cards=modeCards();
   const dueLeftToday=_cards.filter(c=>{const s=srsGet(c.id);return s&&s.due<todayEnd;}).length;   // 已逾期＋今天稍後到期
   const stillDueToday = dueLeftToday>0 || dueNow()>0;
-  $('#doneTitle').textContent = (deferredRetry || stillDueToday) ? '這一輪完成了' : '今天的份，做完了';
+  const allDone = !(deferredRetry || stillDueToday);
+  $('#doneTitle').textContent = allDone ? '今天的份，做完了' : '這一輪完成了';
+  { const h=$('#doneHanko'), m=$('#doneMaru');
+    if(h) h.classList.toggle('hidden', allDone);
+    if(m){ m.classList.toggle('hidden', !allDone);
+      if(allDone){ m.innerHTML=hanamaruSvg(); void m.offsetWidth; m.classList.remove('draw'); void m.offsetWidth; m.classList.add('draw'); }
+      else if(h){ void h.offsetWidth; h.classList.add('stamp'); } } }
   $('#doneMsg').textContent=`本輪練習 ${sessionCardCount} 個${CFG.deck==='KANA'?'假名':'單字'}・作答 ${sessionAnswers} 次`;
   // B7：用「本地日曆的明天」整天當區間，而不是 now()+24 小時——待再練的卡 due 是
   // now()+60000（一分鐘後），原本的滾動窗會把它算成「明天」；反過來，現在是早上時，
@@ -3262,18 +3283,33 @@ function renderBrowse(resetLimit, append){
 /* ═══════════ 吉祥物：企鵝 ═══════════
    扁平、安靜、幾何：深藍蛋身、一塊米色肚、兩個小點眼、小金嘴、一條朱色圍巾。
    沒有腮紅、沒有反光——跟 App 的插畫 icon 是同一種圖形語言。表情只靠眼睛的形狀。 */
+/* 花丸：兩圈手繪感的朱色螺旋＋「よくできました」。用 stroke-dashoffset 畫出來，像老師當場批的。 */
+function hanamaruSvg(){
+  const SC='#c43f35';
+  /* 兩圈手繪感的圓，中間留白。不放字：圈本身就是「很好」，下面的標題已經在講話了。 */
+  const outer='M50 10 C26 10 10 28 10 50 C10 73 28 89 51 89 C75 89 90 71 90 49 C90 27 73 11 50 11';
+  const inner='M50 20 C32 20 20 33 20 50 C20 68 33 79 51 79 C68 79 80 66 80 49 C80 33 67 21 50 21';
+  return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path class="mru" style="--len:270" d="${outer}" fill="none" stroke="${SC}" stroke-width="4.4" stroke-linecap="round"/>
+    <path class="mru mru2" style="--len:200" d="${inner}" fill="none" stroke="${SC}" stroke-width="3.2" stroke-linecap="round" opacity=".85"/>
+  </svg>`;
+}
 function pengu(state='idle', size=96){
   const B='#16273f', F='#f7efe2', SC='#d0463b', BK='#e8b04b', INK='#1c2331';
   /* 眼睛分兩層：pg-eyes 負責眨（scaleY），pg-look 負責左右張望（translateX），兩個都只在 idle 有 */
   const eyes={
     idle:  `<g class="pg-look"><g class="pg-eyes"><circle cx="42" cy="42" r="3.2" fill="${INK}"/><circle cx="58" cy="42" r="3.2" fill="${INK}"/></g></g>`,
     happy: `<path d="M38 43 Q42 38 46 43" stroke="${INK}" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M54 43 Q58 38 62 43" stroke="${INK}" stroke-width="3" fill="none" stroke-linecap="round"/><circle cx="35" cy="49" r="3" fill="${SC}" opacity=".35"/><circle cx="65" cy="49" r="3" fill="${SC}" opacity=".35"/>`,
-    think: `<circle cx="42" cy="41" r="3.2" fill="${INK}"/><circle cx="58" cy="40" r="3.2" fill="${INK}"/><path d="M54 33 q4 -2 8 0" stroke="${INK}" stroke-width="2.2" fill="none" stroke-linecap="round"/>`,
+    think: `<circle cx="42" cy="40" r="3.2" fill="${INK}"/><circle cx="57" cy="39" r="3.2" fill="${INK}"/><path d="M52 32 q5 -3 10 0" stroke="${INK}" stroke-width="3" fill="none" stroke-linecap="round"/>`,
     sleepy:`<path d="M38 42 h8" stroke="${INK}" stroke-width="3" stroke-linecap="round"/><path d="M54 42 h8" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>`,
-    oops:  `<circle cx="42" cy="42" r="4.2" fill="none" stroke="${INK}" stroke-width="2.4"/><circle cx="58" cy="42" r="4.2" fill="none" stroke="${INK}" stroke-width="2.4"/>`,
+    /* X 眼：44px 下兩條交叉線的形狀比空心圈清楚得多（空心圈縮小後就是一個黑點，跟平常分不出來） */
+    oops:  `<path d="M38 38 l7 7 M45 38 l-7 7" stroke="${INK}" stroke-width="3.2" stroke-linecap="round"/><path d="M55 38 l7 7 M62 38 l-7 7" stroke="${INK}" stroke-width="3.2" stroke-linecap="round"/>`,
   }[state]||'';
   const beak = state==='oops' ? `<circle cx="50" cy="50" r="2.6" fill="${BK}"/>` : `<path d="M47 48 L53 48 L50 52.5 Z" fill="${BK}"/>`;
-  const zz = state==='sleepy' ? `<text class="pg-zz" x="70" y="30" font-size="11" font-weight="800" fill="${INK}" font-family="-apple-system,sans-serif">z</text><text class="pg-zz pg-zz2" x="78" y="20" font-size="8" font-weight="800" fill="${INK}" font-family="-apple-system,sans-serif">z</text>` : '';
+  /* 小尺寸的辨識記號：想睡飄 z、思考冒問號、答錯滴汗。44px 時這些符號比表情本身更快讀懂。 */
+  const zz = state==='sleepy' ? `<text class="pg-zz" x="70" y="30" font-size="11" font-weight="800" fill="${INK}" font-family="-apple-system,sans-serif">z</text><text class="pg-zz pg-zz2" x="78" y="20" font-size="8" font-weight="800" fill="${INK}" font-family="-apple-system,sans-serif">z</text>`
+    : state==='think' ? `<text x="76" y="28" font-size="20" font-weight="800" fill="${SC}" font-family="-apple-system,sans-serif">?</text>`
+    : state==='oops' ? `<path d="M74 24 q4 7 4 10 a4 4 0 0 1 -8 0 q0 -3 4 -10 Z" fill="#5b8fb9"/>` : '';
   return `<svg class="pg-svg pg-${state}" width="${size}" height="${size}" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <g class="pg-all">
   <g class="pg-wing pg-wl"><path d="M24 52 q-8 12 -3 24 q5 -5 7 -18 Z" fill="${B}"/></g>
@@ -3346,7 +3382,7 @@ function mascotProgress(){
   return [main, sub, face, pct];
 }
 /* 點企鵝：講一個單字（日文＋讀音＋中文）並發音；再點換下一個。優先講今天到期的，其次最近學會的，再來隨機。5 秒後回到進度。 */
-let SAY_I=0, SAY_POOL=[], SAY_KEY='', POKE_T=null;
+let SAY_I=0, SAY_POOL=[], SAY_KEY='', POKE_T=null, MASCOT_BOWED=false;
 function mascotSayWord(){
   const a=$('#mascotArt'), b=$('#mascotSay'); if(!a||!b) return;
   const key=`${CFG.deck}|${CFG.theme||''}|${CFG.kanaScript||'h'}`; if(key!==SAY_KEY){ SAY_KEY=key; SAY_POOL=[]; SAY_I=0; }   // 換範圍就重建（Codex 6-6）
@@ -3370,7 +3406,9 @@ function renderMascot(){
   const a=$('#mascotArt'), b=$('#mascotSay'); if(!a||!b) return;
   if(POKE_T) return;   // 正在戳，2.6 秒後會自己回來
   const [main,sub,face,pct]=mascotProgress();
-  if(a.dataset.face!==face){ a.innerHTML=pengu(face,76); a.dataset.face=face; }   // 表情沒變就留著原本的 SVG，不然每次重繪首頁眨眼都從頭數（Codex 5）
+  if(a.dataset.face!==face){ a.innerHTML=pengu(face,76); a.dataset.face=face;
+    /* 每次開 App 第一次看到企鵝時鞠個躬打招呼，同一次開啟不重複 */
+    if(!MASCOT_BOWED){ MASCOT_BOWED=true; const sv=a.querySelector('.pg-svg'); if(sv){ sv.classList.add('pg-bow'); setTimeout(()=>sv.classList.remove('pg-bow'),1100); } } }
   const ex=examLine();
   b.innerHTML=`${esc(main)}<small>${esc(sub)}</small><div class="mbar"><i style="width:${pct}%"></i></div>${ex?`<small class="mexam">${esc(ex)}</small>`:''}`;
   if(!a.dataset.poke){ a.dataset.poke='1'; a.onclick=pokeMascot; a.style.cursor='pointer'; a.setAttribute('role','button'); a.setAttribute('tabindex','0'); a.setAttribute('aria-label','點企鵝聽一個單字');
