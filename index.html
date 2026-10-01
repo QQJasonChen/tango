@@ -488,6 +488,7 @@ mark.btarget{background:#fff0c2;color:inherit;border-radius:4px;padding:0 2px}
 .kmtabs button.on{background:var(--navy);border-color:var(--navy);color:#fff}
 .kmtabs button.kmtog{flex:0 0 auto;padding:10px 12px;font-size:12px}
 .kmtabs button.kmtog.on{background:#eceef3;border-color:#cfd6e0;color:var(--blue)}
+.kmtabs.kmmode{margin-top:-4px}.kmtabs.kmmode button{padding:8px 6px;font-size:13px}
 .kmgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}
 .kmc{aspect-ratio:1;background:#fff;border:1.5px solid var(--line);border-radius:13px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;cursor:pointer;-webkit-user-select:none;user-select:none}
 .kmc:active{transform:scale(.95)}
@@ -831,9 +832,10 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
     </div>
     <h2 style="color:var(--navy);font-size:20px;margin:0 2px 2px">五十音表</h2>
     <div class="kmtabs"><button data-s="h" id="kmTabH">平假名</button><button data-s="k" id="kmTabK">片假名</button><button class="kmtog" id="kmRomaji">羅馬拼音</button></div>
+    <div class="kmtabs kmmode"><button id="kmModeAll">全部開放</button><button id="kmModeRows">一行一行解鎖</button></div>
     <div class="kmgrid" id="kmGrid"></div>
     <div class="kmlegend"><span><i style="background:#fff"></i>還沒學</span><span><i style="background:var(--orange-soft)"></i>剛認識</span><span><i style="background:#f0d6d0"></i>會了</span><span><i style="background:var(--blue-soft)"></i>熟了 ✓</span><span><i style="background:#fff;border-color:var(--orange)"></i>現在練</span></div>
-    <div class="kmrule">一行五個字都<b>答對過一次</b>，下一行就會亮起來。點任何一格看讀音、聽發音、看你已經讀得出來的真字。</div>
+    <div class="kmrule" id="kmRule"></div>
     <button class="bigbtn" id="kmStudy">練這一行</button>
     <button class="subtoggle" id="kmDrill" style="margin-top:10px">⚡ 快問快答（10 題）</button>
     <button class="subtoggle hidden" id="kmPreview" style="margin-top:6px"></button>
@@ -3821,12 +3823,21 @@ function kanaNaturalRows(script){ const rows=kanaRows(script); let n=1;
   if(n>seen){ CFG.kanaOpened=Object.assign({},CFG.kanaOpened||{}); CFG.kanaOpened[script]=n; LS.set('ja_cfg',CFG); }
   return Math.min(rows.length, Math.max(n, seen)); }
 /* 首頁／完成頁的一句話：現在卡在哪一行、做什麼就會開下一行。全部開完回傳空字串。 */
-function kanaNextStep(script){ script=script||CFG.kanaScript||'h'; const rows=kanaRows(script), n0=kanaNaturalRows(script);
+function kanaNextStep(script){ if(!kanaRowMode()) return ''; script=script||CFG.kanaScript||'h'; const rows=kanaRows(script), n0=kanaNaturalRows(script);
   if(n0>=rows.length) return '';
   const cur=rows[n0-1].filter(Boolean), nxt=rows[n0].filter(Boolean), done=cur.filter(kanaPassed).length;
   if(kanaUnlockedRows(script)>n0) return `${nxt[0]}行預習中・${cur[0]}行 ${done}/${cur.length} 個答對過，全部答對一次就正式開 ${nxt[0]}行`;   // Codex R16-1
   return `${cur[0]}行 ${done}/${cur.length} 個答對過・全部答對一次就開 ${nxt[0]}行（${nxt.join('')}）`; }
-function kanaUnlockedRows(script){ const rows=kanaRows(script), n=kanaNaturalRows(script); const pv=(CFG.kanaPreview||{})[script]||0;
+/* 2026-10-01 QQ：五十音分兩種模式，預設「全部開放」（一進來就看到全部，不會以為只有五個字）；
+   「一行一行解鎖」給想按部就班測試的人（答對過一次開下一行，見 kanaNaturalRows）。 */
+function kanaRowMode(){ return CFG.kanaMode==='rows'; }
+function setKanaMode(m){ CFG.kanaMode = m==='rows' ? 'rows' : 'all'; LS.set('ja_cfg',CFG); evPush({v:1,ev:'kana_mode',t:Date.now(),m:CFG.kanaMode}); renderKanaMap(); }
+/* 「學過的」假名：任一家族有排程紀錄。全部開放模式下，例詞與快答只用這些（不能考還沒學過的字）。 */
+function kanaKnownSet(script){ if(kanaRowMode()) return kanaUnlockedSet(script);
+  const set=new Set(); kanaRows(script).flat().filter(Boolean).forEach(g=>{ const c=kanaCard(g); if(c && ['recog','prod','listen'].some(f=>!!kanaOwnSrs(c.id,f))) set.add(g); });
+  if(!set.size) kanaRows(script)[0].filter(Boolean).forEach(g=>set.add(g)); return set; }
+function kanaUnlockedRows(script){ if(!kanaRowMode()) return kanaRows(script).length;
+  const rows=kanaRows(script), n=kanaNaturalRows(script); const pv=(CFG.kanaPreview||{})[script]||0;
   return Math.min(rows.length, Math.max(n, Math.min(pv, n+1))); }
 function kanaPreviewNext(script){ script=script||CFG.kanaScript||'h'; const n=kanaNaturalRows(script); if(n>=kanaRows(script).length) return;
   CFG.kanaPreview=Object.assign({},CFG.kanaPreview||{}); CFG.kanaPreview[script]=n+1; LS.set('ja_cfg',CFG); renderKanaMap(); }
@@ -3851,16 +3862,20 @@ function kanaReadable(script, unlocked, must, limit){
 let KM_ROMAJI=true;
 function renderKanaMap(){
   const sc=CFG.kanaScript||'h', rows=kanaRows(sc), unl=kanaUnlockedRows(sc);
+  const curRow = kanaRowMode() ? unl-1 : Math.max(0, rows.findIndex(r=>r.some(g=>g&&!kanaPassed(g))));   // 「現在練」：全部開放時＝第一個還有沒答對過的字的那一行
+  $('#kmModeAll').classList.toggle('on',!kanaRowMode()); $('#kmModeRows').classList.toggle('on',kanaRowMode());
+  $('#kmRule').innerHTML = kanaRowMode() ? '一行五個字都<b>答對過一次</b>，下一行就會亮起來。點任何一格看讀音、聽發音、看你已經讀得出來的真字。'
+    : '五十音<b>全部開放</b>，新的假名照あいうえお的順序出。想一行一行測試自己，切到「一行一行解鎖」。點任何一格看讀音、聽發音。';
   $('#kmTabH').classList.toggle('on',sc==='h'); $('#kmTabK').classList.toggle('on',sc==='k'); $('#kmRomaji').classList.toggle('on',KM_ROMAJI);
   let learned=0,total=0;
   $('#kmGrid').innerHTML=rows.map((row,ri)=>row.map(g=>{
     if(!g) return '<div class="kmc gap"></div>';
     const m=kanaMastery(g); total++; if(m>=2) learned++;
-    const lock=ri>=unl, cur=ri===unl-1;
+    const lock=ri>=unl, cur=ri===curRow;
     return `<div class="kmc m${m}${lock?' lock':''}${cur?' cur':''}" data-g="${g}" role="button" tabindex="0"><span class="g">${g}</span>${KM_ROMAJI?`<span class="r">${kanaRoma(g)}</span>`:''}${m?`<span class="m">${m}</span>`:''}</div>`;
   }).join('')).join('');
   $('#kmProg').textContent=`${learned} / ${total} 會了`;
-  const cur=rows[unl-1].filter(Boolean).join('');
+  const cur=rows[curRow].filter(Boolean).join('');
   /* 按鈕要說實話：到期的複習優先、再發目前這一行的新字；什麼都沒有就告訴他下次何時 */
   { const _p=roundPlan(); const cards=modeCards(); const due=_p.chunked?_p.dueAll:(_p.dueAll+_p.probes);
     const fresh=_p.fresh;
@@ -3869,11 +3884,11 @@ function renderKanaMap(){
       const hrs=nxt?Math.max(1,Math.round((nxt-now())/3600000)):0;
       b.textContent = learned>=total ? `全部會了・下次複習${hrs>=24?` ${Math.round(hrs/24)} 天`:` ${hrs} 小時`}後` : '今天沒有要練的，明天再來';
       b.disabled=true; }
-    else if(due&&fresh) b.textContent=`複習 ${due} 張＋練新的一行（${cur}）`;
+    else if(due&&fresh) b.textContent= kanaRowMode() ? `複習 ${due} 張＋練新的一行（${cur}）` : `複習 ${due} 張＋練新的假名`;
     else if(due) b.textContent= due>REVIEW_CHUNK ? `先複習 ${REVIEW_CHUNK} 張，共 ${due} 張` : `複習到期的 ${due} 張`;
-    else b.textContent=`練這一行：${cur}`; }
-  { const b=$('#kmPreview'); if(b){ const n0=kanaNaturalRows(sc); const pv=(CFG.kanaPreview||{})[sc]||0; const can = n0<rows.length && unl===n0;   // 還沒預習、且還有下一行
-      b.classList.toggle('hidden',!can); if(can){ const nxt=rows[n0].filter(Boolean).join(''); b.textContent=`先預習下一行：${nxt}`; b.onclick=()=>kanaPreviewNext(sc); } } }
+    else b.textContent= kanaRowMode() ? `練這一行：${cur}` : `練新的假名（從 ${cur} 開始）`; }
+  { const b=$('#kmPreview'); if(b){ if(!kanaRowMode()){ b.classList.add('hidden'); } else { const n0=kanaNaturalRows(sc); const pv=(CFG.kanaPreview||{})[sc]||0; const can = n0<rows.length && unl===n0;   // 還沒預習、且還有下一行
+      b.classList.toggle('hidden',!can); if(can){ const nxt=rows[n0].filter(Boolean).join(''); b.textContent=`先預習下一行：${nxt}`; b.onclick=()=>kanaPreviewNext(sc); } } } }
   document.querySelectorAll('#kmGrid .kmc[data-g]').forEach(el=>{ el.onclick=()=>showKanaDetail(el.dataset.g); el.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();el.click();} }; });
 }
 function openKanaMap(){
@@ -3884,7 +3899,7 @@ function openKanaMap(){
 }
 function showKanaDetail(g){
   const c=kanaCard(g); if(!c) return; const sc=CFG.kanaScript||'h';
-  const unl=kanaUnlockedSet(sc);   // 鎖住的字可以先看筆順，但例詞只用真的解鎖的假名（Codex 3-13）
+  const unl=new Set([...kanaKnownSet(sc), g]);   // 例詞只用學過的假名＋這一個字（全部開放模式也不出讀不出來的字；Codex 3-13）
   const words=kanaReadable(sc,unl,g,4);
   const m=kanaMastery(g), mtext=['還沒學過','剛認識，再練幾次','會了','熟了'][m];
   $('#kpBody').innerHTML=`<div class="kpbig">${g}</div><div class="kprom">${kanaRoma(g)}　·　${mtext}</div>
@@ -3926,6 +3941,7 @@ $('#kanaBack').onclick=()=>{ drillClose(true); $('#kanamap').classList.add('hidd
 $('#kmTabH').onclick=()=>{ CFG.kanaScript='h'; LS.set('ja_cfg',CFG); renderKanaMap(); };
 $('#kmTabK').onclick=()=>{ CFG.kanaScript='k'; LS.set('ja_cfg',CFG); renderKanaMap(); };
 $('#kmRomaji').onclick=()=>{ KM_ROMAJI=!KM_ROMAJI; renderKanaMap(); };
+$('#kmModeAll').onclick=()=>setKanaMode('all'); $('#kmModeRows').onclick=()=>setKanaMode('rows');
 /* ═══ Drill 快問快答 ═══
    題庫＝目前這一套（平／片）已解鎖的假名。10 題，單數題「看假名選羅馬字」、雙數題「看羅馬字選假名」，
    四選一，錯的選項優先從同一行拿（最容易搞混的），不夠再從其他已解鎖的拿。
@@ -4011,7 +4027,7 @@ function quizEnd(early){ const d=VQ; if(!d) return; const n=d.answered, secs=Mat
 function quizClose(){ VQ=null; stopAllAudio(); $('#vquiz').classList.add('hidden'); try{ $('#home').inert=false; }catch(e){} if(!$('#home').classList.contains('hidden')) renderHome(); }
 $('#quizBtn').onclick=quizStart; $('#vqClose').onclick=quizClose;
 CUSTOM_CLOSE_PW.vquiz=quizClose; $('#vquiz').addEventListener('click',e=>{ if(e.target===$('#vquiz')) quizClose(); });   // 遮罩／Esc 都走 quizClose（Codex 9-2）
-function drillPool(){ const sc=CFG.kanaScript||'h'; return [...kanaUnlockedSet(sc)]; }
+function drillPool(){ const sc=CFG.kanaScript||'h'; return [...kanaKnownSet(sc)]; }   // 只考學過的（全部開放模式下不考還沒學的）
 function drillStart(){
   const pool=drillPool(); if(pool.length<2) return;
   const rows=kanaRows(CFG.kanaScript||'h');
