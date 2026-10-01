@@ -833,7 +833,7 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
     <div class="kmtabs"><button data-s="h" id="kmTabH">平假名</button><button data-s="k" id="kmTabK">片假名</button><button class="kmtog" id="kmRomaji">羅馬拼音</button></div>
     <div class="kmgrid" id="kmGrid"></div>
     <div class="kmlegend"><span><i style="background:#fff"></i>還沒學</span><span><i style="background:var(--orange-soft)"></i>剛認識</span><span><i style="background:#f0d6d0"></i>會了</span><span><i style="background:var(--blue-soft)"></i>熟了 ✓</span><span><i style="background:#fff;border-color:var(--orange)"></i>現在練</span></div>
-    <div class="kmrule">一行五個字全部「會了」，下一行才會亮起來。點任何一格看讀音、聽發音、看你已經讀得出來的真字。</div>
+    <div class="kmrule">一行五個字都<b>答對過一次</b>，下一行就會亮起來。點任何一格看讀音、聽發音、看你已經讀得出來的真字。</div>
     <button class="bigbtn" id="kmStudy">練這一行</button>
     <button class="subtoggle" id="kmDrill" style="margin-top:10px">⚡ 快問快答（10 題）</button>
     <button class="subtoggle hidden" id="kmPreview" style="margin-top:6px"></button>
@@ -2368,7 +2368,7 @@ function renderHome(){
   // 一句情境提示：新手講免費解說在哪裡、N3 以上講每天可試看幾句——只講一件事，不堆促銷
   const tipEl=$('#homeTip'); if(tipEl){
     tipEl.textContent = isPro() ? '所有例句的文法解說都已解鎖'
-      : CFG.deck==='KANA' ? '每個假名都有發音和筆順動畫，點「看五十音表」'
+      : CFG.deck==='KANA' ? (kanaNextStep() || '每個假名都有發音和筆順動畫，點「看五十音表」')
       : FREE_GRAM_LEVELS.includes(CFG.deck) ? '翻面後點「文法解說・免費」，每句例句都有老師講解'
       : IS_NATIVE ? `N3 以上的例句解說每天可免費試看 ${TASTE_PER_DAY} 句` : 'N3 以上的例句解說請在 App 內解鎖';
   }
@@ -2377,7 +2377,7 @@ function renderHome(){
   renderMascot();
   $('#startBtn').disabled=due===0;
   const _p=roundPlan();
-  $('#startBtn').textContent = curEmpty ? '這個篩選沒有字' : (due===0 ? (relearnSoon.length?'等一下再練':'這牌組複習完了 ✓') : (_p.chunked ? `先複習 ${REVIEW_CHUNK} 張・共 ${_p.dueAll} 張待複習` : `開始學習：${deckLabel()}`));
+  $('#startBtn').textContent = curEmpty ? '這個篩選沒有字' : (due===0 ? (relearnSoon.length?'等一下再練':(CFG.deck==='KANA'&&kanaNextStep()?'今天的假名練完了 ✓':'這牌組複習完了 ✓')) : (_p.chunked ? `先複習 ${REVIEW_CHUNK} 張・共 ${_p.dueAll} 張待複習` : `開始學習：${deckLabel()}`));
   /* 今天的新字配額用完、但這個牌組還有沒學過的字 → 給一個明確的加碼出口。
      預設擋住是為了控制未來的複習量；硬鎖死只會讓人改去別的 App。 */
   const canMore=newLeftToday()===0 && newCount()>0;
@@ -3434,10 +3434,11 @@ function finishStudy(){$('#study').classList.add('hidden');$('#done').classList.
   $('#doneMsg').textContent=`本輪練習 ${sessionCardCount} 個${CFG.deck==='KANA'?'假名':'單字'}・作答 ${sessionAnswers} 次`;
   /* A5：五十音 46 字都「會了」→ 畢業，一鍵換 N5（一生一次） */
   { const g=$('#doneGrad'); if(g){ g.classList.add('hidden');
-      if(CFG.deck==='KANA' && KANA_ROWS_H.flat().filter(Boolean).every(k=>kanaMastery(k)>=2) && tipOnce('kanagrad')){
+      if(CFG.deck==='KANA' && kanaRows(CFG.kanaScript||'h').flat().filter(Boolean).every(k=>kanaMastery(k)>=2) && tipOnce('kanagrad'+(CFG.kanaScript==='k'?'_k':''))){   // 目前練的那一套（Codex R16-3）
         g.classList.remove('hidden');
         g.innerHTML='🎓 五十音畢業！<button class="reviewlink" id="gradGo" style="display:inline;margin:0 0 0 6px">去學 N5 單字 ›</button>';
-        $('#gradGo').onclick=()=>{ CFG.deck='N5'; LS.set('ja_cfg',CFG); $('#doneBack').click(); }; } } }
+        $('#gradGo').onclick=()=>{ CFG.deck='N5'; LS.set('ja_cfg',CFG); $('#doneBack').click(); }; }
+      else if(CFG.deck==='KANA' && kanaNextStep()){ g.classList.remove('hidden'); g.textContent=kanaNextStep(); } } }   // 五十音：講清楚下一行怎麼開
   // B7：用「本地日曆的明天」整天當區間，而不是 now()+24 小時——待再練的卡 due 是
   // now()+60000（一分鐘後），原本的滾動窗會把它算成「明天」；反過來，現在是早上時，
   // 下午才到期、超過 24 小時窗的今日已逾期卡又會被漏掉不計。
@@ -3808,8 +3809,23 @@ function kanaOwnSrs(id,fam){ return fam==='recog' ? SRS[id] : (MSRS[fam]||{})[id
 function kanaLevelOf(s){ if(!s) return 0; if((s.interval||0)>=14) return 3; if((s.reps||0)>=2&&(s.interval||0)>=4) return 2; return 1; }
 function kanaMastery(g){ const c=kanaCard(g); if(!c) return 0; return Math.max(...['recog','prod','listen'].map(f=>kanaLevelOf(kanaOwnSrs(c.id,f)))); }
 /* 自然解鎖：前一行全部 ≥2 才開下一行。預習：使用者可以主動先開下一行（只能超前一行），熟練度照舊算，不會因為預習就變熟（路線圖 2.3 第 5 項）。 */
+/* 2026-10-01 放寬（使用者回報「五十音只顯示前五個、不知道怎麼往下」）：原本要前一行全部「會了」
+   （複習 ≥2 次且間隔 ≥4 天）才開下一行＝第一天練完五個字就卡好幾天，畫面又寫「這牌組複習完了 ✓」。
+   改成「前面每個字都答對過一次」（任一家族 reps ≥1）就開；記不記得住交給排程，五十音表的會了／熟了照舊。 */
+function kanaPassed(g){ const c=kanaCard(g); if(!c) return false; return ['recog','prod','listen'].some(f=>{ const x=kanaOwnSrs(c.id,f); return !!x && (x.reps||0)>=1; }); }
+/* 開過的行不會再關（Codex R16-2）：答錯會把該家族 reps 歸零，若只看當下狀態，已經開的下一行會倒退關掉。
+   CFG.kanaOpened[script] 記錄自然解鎖的最高行數，只增不減。 */
 function kanaNaturalRows(script){ const rows=kanaRows(script); let n=1;
-  for(let i=0;i<rows.length-1;i++){ if(rows[i].every(g=>!g||kanaMastery(g)>=2)) n=i+2; else break; } return n; }
+  for(let i=0;i<rows.length-1;i++){ if(rows[i].every(g=>!g||kanaPassed(g))) n=i+2; else break; }
+  const seen=(CFG.kanaOpened||{})[script]||1;
+  if(n>seen){ CFG.kanaOpened=Object.assign({},CFG.kanaOpened||{}); CFG.kanaOpened[script]=n; LS.set('ja_cfg',CFG); }
+  return Math.min(rows.length, Math.max(n, seen)); }
+/* 首頁／完成頁的一句話：現在卡在哪一行、做什麼就會開下一行。全部開完回傳空字串。 */
+function kanaNextStep(script){ script=script||CFG.kanaScript||'h'; const rows=kanaRows(script), n0=kanaNaturalRows(script);
+  if(n0>=rows.length) return '';
+  const cur=rows[n0-1].filter(Boolean), nxt=rows[n0].filter(Boolean), done=cur.filter(kanaPassed).length;
+  if(kanaUnlockedRows(script)>n0) return `${nxt[0]}行預習中・${cur[0]}行 ${done}/${cur.length} 個答對過，全部答對一次就正式開 ${nxt[0]}行`;   // Codex R16-1
+  return `${cur[0]}行 ${done}/${cur.length} 個答對過・全部答對一次就開 ${nxt[0]}行（${nxt.join('')}）`; }
 function kanaUnlockedRows(script){ const rows=kanaRows(script), n=kanaNaturalRows(script); const pv=(CFG.kanaPreview||{})[script]||0;
   return Math.min(rows.length, Math.max(n, Math.min(pv, n+1))); }
 function kanaPreviewNext(script){ script=script||CFG.kanaScript||'h'; const n=kanaNaturalRows(script); if(n>=kanaRows(script).length) return;
