@@ -52,7 +52,7 @@ audio{height:30px;vertical-align:middle;max-width:100%}
 .wi .jp{font-size:21px;font-weight:700;font-family:"Hiragino Mincho ProN",serif}
 .wi .rd{color:var(--mute);font-size:14px;margin-left:8px}
 .wi .zh{color:#3d4756;font-size:15px;margin-top:2px}
-.wi button{flex:none;width:42px;height:42px;border-radius:50%;border:1.5px solid var(--line);
+.wi button{flex:none;width:46px;height:46px;border-radius:50%;border:1.5px solid var(--line);
  background:#fff;cursor:pointer;font-size:15px;color:var(--ink);line-height:1}
 .wi button:hover{border-color:var(--red);color:var(--red)}
 .note{background:#fff;border:1px solid var(--line);border-radius:12px;padding:15px 17px;margin:16px 0}
@@ -75,22 +75,58 @@ footer a{color:var(--mute)}
 @media(max-width:560px){h1{font-size:27px}.big{font-size:84px}.cols{columns:1}header nav a{margin-left:9px;font-size:13px}td audio{width:118px}}
 ruby rt{font-size:.55em;color:#6b6258}
 .logo{white-space:nowrap}header nav{overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch}
-h3{font-size:17px;margin:22px 0 8px}h3 small{font-weight:400;color:#6b6258;font-size:13px}.cols span{display:block;padding:3px 0;break-inside:avoid}</style></head><body>
+.sv .st{stroke-dasharray:1;stroke-dashoffset:0}
+@keyframes draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+@media (prefers-reduced-motion:no-preference){.sv.play .st{animation:draw .65s ease both;animation-delay:calc(var(--i)*.75s)}}
+.acts{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:14px 0}
+.pb{min-height:46px;padding:0 20px;border-radius:999px;border:1.5px solid var(--line);background:#fff;color:var(--ink);font-size:16px;font-weight:700;cursor:pointer;font-family:inherit}
+.pb.go{background:var(--red);border-color:var(--red);color:#fff}
+.pb:focus-visible,.grid a:focus-visible,.pn a:focus-visible{outline:3px solid var(--red);outline-offset:2px}
+.pn{display:flex;justify-content:space-between;gap:12px;margin:26px 0 0}
+.pn a{flex:1;min-height:48px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:12px;background:#fff;text-decoration:none;color:var(--ink);font-weight:700}
+.pn a.off{visibility:hidden}
+.grid a.on{border-color:var(--red);box-shadow:0 0 0 2px var(--red) inset}
+.grid.vo span{opacity:1;height:66px;font-size:20px;white-space:nowrap}
+.grid.vo span b{font-weight:400;display:flex;gap:7px;line-height:1.25}
+.grid.vo span b i{font-style:normal;color:#5a6577}
+.grid.vo.y3{grid-template-columns:repeat(3,1fr)}
+#kv{position:fixed;left:0;right:0;bottom:0;z-index:20;background:#fff;border-top:1px solid var(--line);border-radius:18px 18px 0 0;box-shadow:0 -10px 30px -12px rgba(22,39,63,.35);padding:14px 18px calc(16px + env(safe-area-inset-bottom,0px));max-width:720px;margin:0 auto}
+#kv[hidden]{display:none}
+#kv .row{display:flex;align-items:center;gap:16px}
+#kv .kb{font-size:54px;line-height:1;font-family:"Hiragino Mincho ProN",serif}
+#kv .kr{color:var(--mute);letter-spacing:2px;font-size:16px}
+#kv .sv{margin:0;flex:none}
+#kv .x{margin-left:auto;align-self:flex-start;width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:#fff;font-size:18px;cursor:pointer;color:var(--ink)}
+#kv .acts{justify-content:flex-start;margin:12px 0 0}
+#kv a.pb{display:inline-flex;align-items:center;text-decoration:none}
+body.kvon .wrap{padding-bottom:260px}
+/* 手機優先：凡是可以點的，點擊範圍至少 44px（導覽、麵包屑、清單、表格與內文裡的連結、頁尾） */
+header nav a{display:inline-flex;align-items:center;justify-content:center;min-height:44px;min-width:44px;padding:0 4px}
+header a.logo{display:inline-flex;align-items:center;min-height:44px}
+@media(max-width:380px){header .bar{flex-wrap:wrap;gap:0;padding:8px 20px}header nav{width:100%;display:flex;justify-content:space-between;overflow:visible}header nav a{margin-left:0}}
+.crumb a{display:inline-flex;align-items:center;justify-content:center;min-height:44px;min-width:44px;padding:0 8px;margin:0 -8px}
+.cols a{display:flex;align-items:center;min-height:44px;padding:4px 0}
+td a,h3 a,p>a:only-child,.wrap>p>a,footer a{display:inline-flex;align-items:center;min-height:44px;min-width:44px}
+h3{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.cta a{min-height:46px;display:inline-flex;align-items:center;margin-bottom:8px}
+h3{font-size:17px;margin:22px 0 8px}h3 small{font-weight:400;color:#6b6258;font-size:13px}.cols span{display:block;padding:3px 0;break-inside:avoid}</style><script>var _pa;function pa(u){try{if(_pa){_pa.pause();_pa.currentTime=0;}_pa=new Audio(u);var p=_pa.play();if(p&&p.catch)p.catch(function(){});}catch(e){}}</script></head><body>
 <header><div class="bar">
 <a class="logo" href="../index.html">単語ノート</a>
 <nav><a href="../kana/index.html">五十音</a><a href="../official/index.html">官方試題</a><a href="../traps/index.html">陷阱</a><a href="https://qqjasonchen.github.io/tango/">線上版</a></nav>
 </div></header><div class="wrap"><p class="crumb"><a href="../index.html">首頁</a> › <a href="index.html">五十音表</a> › ノ</p>
 <h1>片假名「ノ」怎麼唸、怎麼寫</h1>
 <div class="big">ノ</div><div class="roma">no</div>
-<p style="text-align:center"><audio controls preload="none" src="https://qqjasonchen.github.io/tango-audio/audio/w_90049.mp3"></audio></p>
-<h2>筆順（1 畫）</h2><svg class="sv" width="190" height="190" viewBox="0 0 109 109"><path d="M54.5 0v109M0 54.5h109" stroke="#eee6da" stroke-width="1" stroke-dasharray="3 3"/><path d="M72.37,25.25c0.75,2,0.92,4.89,0.25,7.25c-7.12,25-25.38,44.75-43.62,56.88" fill="none" stroke="#16273f" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/><text x="65.4" y="24.8" font-size="10" fill="#c43f35" font-weight="700" stroke="#fffdf8" stroke-width="3" paint-order="stroke" text-anchor="middle">1</text></svg>
+<div class="acts"><button class="pb go" onclick="pa('https://qqjasonchen.github.io/tango-audio/audio/w_90049.mp3')" aria-label="播放 ノ 的發音">▶ 聽發音</button></div>
+<h2>筆順（1 畫）</h2><svg class="sv" width="190" height="190" viewBox="0 0 109 109"><path d="M54.5 0v109M0 54.5h109" stroke="#eee6da" stroke-width="1" stroke-dasharray="3 3"/><path class="st" style="--i:0" pathLength="1" d="M72.37,25.25c0.75,2,0.92,4.89,0.25,7.25c-7.12,25-25.38,44.75-43.62,56.88" fill="none" stroke="#16273f" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/><text x="65.4" y="24.8" font-size="10" fill="#c43f35" font-weight="700" stroke="#fffdf8" stroke-width="3" paint-order="stroke" text-anchor="middle">1</text></svg>
+<div class="acts"><button class="pb" onclick="var s=document.querySelector('.sv');s.classList.remove('play');void s.getBoundingClientRect();s.classList.add('play')">▶ 看筆順動畫</button></div>
 <p style="text-align:center;color:var(--mute);font-size:14px">紅色數字標在每一筆的起筆處，照 1、2、3 的順序寫</p>
 <p>對應的平假名是 <a href="no-h.html">の</a>。</p>
 <h2>ノ 屬於な行</h2><p>n 行。寫法上 ぬ 和 め 很像，差在末端有沒有打結。</p>
 <h2>容易跟「メ」搞混</h2><div class="note"><b>怎麼分</b><br>ノ 只有一畫；メ 是兩畫交叉。</div><p><a href="me-k.html">→ 看「メ」的筆順</a></p>
 <h2>用「ノ」組成的單字</h2>
 <p>以下都是 N5–N4 的常用字，點播放可以聽發音。</p>
-<div class="wl"><div class="wi"><div class="t"><span class="jp">ノート</span><div class="zh">筆記本</div></div><button onclick="new Audio('https://qqjasonchen.github.io/tango-audio/audio/w_91288.mp3').play()" aria-label="播放 ノート 的發音">▶</button></div><div class="wi"><div class="t"><span class="jp">ピアノ</span><div class="zh">鋼琴</div></div><button onclick="new Audio('https://qqjasonchen.github.io/tango-audio/audio/w_91489.mp3').play()" aria-label="播放 ピアノ 的發音">▶</button></div></div>
+<div class="wl"><div class="wi"><div class="t"><span class="jp">ノート</span><div class="zh">筆記本</div></div><button onclick="pa('https://qqjasonchen.github.io/tango-audio/audio/w_91288.mp3')" aria-label="播放 ノート 的發音">▶</button></div><div class="wi"><div class="t"><span class="jp">ピアノ</span><div class="zh">鋼琴</div></div><button onclick="pa('https://qqjasonchen.github.io/tango-audio/audio/w_91489.mp3')" aria-label="播放 ピアノ 的發音">▶</button></div></div>
+<nav class="pn" aria-label="上一個、下一個假名"><a href="ne-k.html">← ネ</a><a href="ha-k.html">ハ →</a></nav>
 <div class="cta"><h3>想把這些字真的記起來？</h3>
 <p>単語ノート 用間隔重複，只在你快忘的時候把字丟回你面前。13,379 個單字，五十音一路到 N1，還有照日檢題型出的模擬題。單字與五十音永久免費，無廣告、免註冊、不收集資料。</p>
 <a href="https://apps.apple.com/tw/app/id6784779535">下載 iOS App</a><a class="ghost" href="https://qqjasonchen.github.io/tango/">用網頁版</a></div>

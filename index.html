@@ -450,6 +450,12 @@ mark.btarget{background:#fff0c2;color:inherit;border-radius:4px;padding:0 2px}
 .pwfree{font-size:12.5px;color:var(--muted)}
 .pwcount{font-size:12.5px;color:var(--muted);margin-top:2px}
 .rateask{margin-top:4px;padding:14px 16px;border-radius:14px;background:#fff;border:1.5px solid #e8e0d2;max-width:300px;width:100%;text-align:left}
+.appnudge{margin-top:12px;padding:14px 16px;border-radius:14px;background:#fff;border:1.5px solid #e8e0d2;text-align:left}
+.appnudge .ant{font-size:13.5px;line-height:1.6;color:var(--muted)}
+.appnudge .ant b{display:block;font-size:15.5px;color:var(--navy);margin-bottom:3px}
+.appnudge .anb{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
+.appnudge .anb button{flex:1 1 130px;min-height:44px;border-radius:12px;border:1.5px solid #e8e0d2;background:#fff;color:var(--navy);font-weight:700;font-size:14.5px;font-family:inherit}
+.appnudge .anb button.yes{background:var(--navy);border-color:var(--navy);color:#fff}
 .rateask .rq{font-size:15px;font-weight:700;margin-bottom:10px;line-height:1.5}
 .rateask .rbtns{display:flex;gap:8px}
 .rateask .rbtns button{flex:1;padding:10px 6px;border-radius:11px;border:1.5px solid #dfd6c8;background:#fff;font-size:14px;font-weight:700;cursor:pointer;color:inherit}
@@ -806,6 +812,9 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
         <button id="syncBtn"><svg class="ic" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#3f8f5f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4 4 0 0 1-.4-8A5.5 5.5 0 0 1 17 10.4 3.8 3.8 0 0 1 16.5 18z"/><path d="m9.5 14.5 1.8 1.8 3.4-3.6"/></svg><b>備份</b><em>進度轉移</em></button>
       </div>
 
+      <!-- 只有網頁版會出現：網頁版是試用入口，長期用推薦 App（QQ 2026-10-05）。關掉後 14 天內不再出現。 -->
+      <div class="appnudge hidden" id="appNudge"><div class="ant" id="appNudgeT"></div><div class="anb"><button class="yes" id="appNudgeGo"></button><button id="appNudgeNo">先用網頁版</button></div></div>
+
       <div class="section-t">練什麼</div>
       <select class="dirselect" id="dirSelect"></select>
       <div class="hintline" id="dirHint" style="margin-top:8px;font-size:13px"></div>
@@ -1150,6 +1159,7 @@ function ico(k,sz){return IC[k]?`<img class="ic" src="${IC[k]}" width="${sz}" he
       <div id="examNote" style="font-size:12px;color:var(--muted);margin:4px 4px 0;line-height:1.5"></div>
       <div class="hidden" id="remindNote" style="font-size:12px;color:var(--muted);margin:4px 4px 0;line-height:1.5"></div>
       <button class="reviewlink hidden" id="reviewBtn" style="margin-top:14px">在 App Store 評論 ›</button>
+      <button class="reviewlink hidden" id="moreGetApp">📱 改用 iPhone App ›</button>
       <button class="reviewlink hidden" id="moreFeedback">✉️ 回報問題 ›</button>
       <button class="closex" id="moreClose">關閉</button>
     </div>
@@ -2411,6 +2421,7 @@ function renderHome(){
   $('#home').classList.remove('hidden');$('#study').classList.add('hidden');$('#done').classList.add('hidden');
   $('#sentences').classList.add('hidden');$('#browse').classList.add('hidden');
   const pro=isPro();
+  appNudgeRender();
   $('#streakChip').innerHTML=ico('s_streak',19)+'連續 '+(STAT.streak||0)+' 天'; $('#streakChip').classList.toggle('zero',!(STAT.streak>0));
   pushWidget(); scheduleReminder();
   $('#streakChip').style.cursor='pointer'; $('#streakChip').onclick=openHeat;
@@ -3462,6 +3473,20 @@ function usageSummary(){
 function feedbackMail(){ return 'mailto:qqleveragelearning@gmail.com?subject='+encodeURIComponent('単語ノート 哪裡卡卡的')+'&body='+encodeURIComponent('\n\n\n'+usageSummary()); }
 /* 開外部連結。WKWebView 沒有 navigationDelegate 時，location= 會把 App 本身導走、
    window.open 什麼都不做，所以原生走 openurl handler（Swift 端只放行 apps.apple.com 與 mailto）。 */
+/* 網頁版 → 推薦 App。網頁版的進度只在這個瀏覽器；App 有 iCloud 備份、每日提醒、跟讀。
+   這張卡只在網頁版出現，關掉後 14 天不再出現（鍵名不用 ja_ 開頭：不該跟著備份帶到別台）。 */
+const APP_STORE_URL='https://apps.apple.com/tw/app/id6784779535';
+const IS_IOS_WEB=!IS_NATIVE && /iPhone|iPod/.test(navigator.userAgent);   /* App Store 標示「僅適用於 iPhone」，所以只有 iPhone 才用「到 App Store 下載」 */
+let APP_NUDGE_OFF=false;   /* 無痕模式 localStorage 會丟例外：這次瀏覽內關掉就別再出現 */
+function appNudgeDue(){ if(IS_NATIVE || APP_NUDGE_OFF) return false; let t=0; try{ t=+localStorage.getItem('appnudge_off')||0; }catch(e){} return !(t>0 && Date.now()-t < 14*86400000 && Date.now()>=t); }
+function appNudgeRender(){ const el=$('#appNudge'); if(!el) return; const on=appNudgeDue(); el.classList.toggle('hidden', !on); if(!on) return;
+  $('#appNudgeT').innerHTML = IS_IOS_WEB
+    ? '<b>長期背，推薦用 App</b>網頁版的進度只存在這個瀏覽器，清掉網站資料就沒了。App 支援 iCloud 自動備份、可以開每日提醒、還能跟讀；單字一樣免費。現在的進度可以用上面的「備份」帶過去。'
+    : '<b>有 iPhone 的話，推薦用 App</b>網頁版的進度只存在這個瀏覽器，清掉網站資料就沒了。App 支援 iCloud 自動備份、可以開每日提醒、還能跟讀；單字一樣免費。目前提供 iPhone App，支援的裝置請見 App Store。';
+  $('#appNudgeGo').textContent = IS_IOS_WEB ? '到 App Store 下載' : '看 App Store 頁面'; }
+function appNudgeInit(){ if(IS_NATIVE) return; $('#appNudgeGo').onclick=()=>openExternal(APP_STORE_URL);
+  $('#appNudgeNo').onclick=()=>{ APP_NUDGE_OFF=true; try{ localStorage.setItem('appnudge_off', String(Date.now())); }catch(e){} $('#appNudge').classList.add('hidden'); };
+  const m=$('#moreGetApp'); if(m){ m.classList.remove('hidden'); m.onclick=()=>openExternal(APP_STORE_URL); } appNudgeRender(); }
 function openExternal(url){
   if(IS_NATIVE){ try{ webkit.messageHandlers.openurl.postMessage(url); }catch(e){} return; }
   window.open(url,'_blank','noopener');
@@ -4874,6 +4899,7 @@ function toggleHideZh(){
   document.querySelectorAll('.hzbtn').forEach(b=>{ const on=!CFG.hideZh; b.classList.toggle('on',on); b.setAttribute('aria-pressed',on); b.innerHTML=(on?I_EYE:I_EYEX)+'中文'; });
 }
 applyHideZh();
+appNudgeInit();
 renderHome();
 maybeOnboard();   // 首次啟動引導（老用戶不會看到）
 </script>
