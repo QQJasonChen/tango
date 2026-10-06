@@ -155,7 +155,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;height:env(safe-area
 .syncst b{font-weight:800}
 
 /* study */
-.study{flex:1;display:flex;flex-direction:column;padding:0 18px 22px}
+.study{flex:1;display:flex;flex-direction:column;padding:0 18px 0}
 .pbar{height:8px;background:var(--line);border-radius:99px;overflow:hidden;margin:6px 0 10px}
 /* 學習頁的企鵝：小一號、一行字，不能把卡片往下擠太多 */
 .smascot{display:flex;align-items:center;gap:8px;margin:0 2px 6px;min-height:44px}
@@ -704,6 +704,14 @@ mark.btarget{background:#fff0c2;color:inherit;border-radius:4px;padding:0 2px}
 .blastbtn{border:none;background:var(--orange-soft);box-shadow:none}
 .starbtn.on{background:var(--orange-soft);border-color:transparent}
 /* 四顆評分鍵：灰朱兩階（要再練）＋灰靛兩階（想得起來），同一語言 */
+/* 評分鍵／翻面鍵固定在螢幕底部（2026-10-05）：卡背加了官方出處與「練一下」之後有兩個螢幕長，
+   原本評分鍵排在最底下，每張卡都要滑到底才按得到。現在卡背在它上方捲動，鍵永遠看得到。 */
+#controls{position:sticky;bottom:0;z-index:6;margin:0 -18px;padding:8px 18px calc(10px + env(safe-area-inset-bottom,0px));background:linear-gradient(to top,var(--bg) 82%,rgba(250,247,242,0))}
+#controls:empty{display:none}
+/* 畫面很矮（手機橫向）時不固定：固定列會把打字／填空的輸入框整個蓋住（Codex r38） */
+@media (max-height:520px){#controls{position:static;margin:0;padding:0 0 22px;background:none}}
+#controls .rate{margin-top:0}
+#controls .hintline{background:var(--bg);border-radius:10px;padding:6px 8px;margin-bottom:6px}
 .rate{gap:8px}
 .rate button{box-shadow:none;border-radius:12px;min-height:78px;font-size:13.5px;padding:10px 3px;transition:transform .1s,box-shadow .1s,filter .1s}
 /* 滑動時，會選到的那顆先亮起來——手勢和按鈕講同一套語言 */
@@ -2422,6 +2430,7 @@ function renderHome(){
   $('#sentences').classList.add('hidden');$('#browse').classList.add('hidden');
   const pro=isPro();
   appNudgeRender();
+  { const _st=$('#study'); if(_st && _st.style.paddingBottom) _st.style.paddingBottom=''; }   /* 鍵盤墊的空間不留到下一次學習 */
   $('#streakChip').innerHTML=ico('s_streak',19)+'連續 '+(STAT.streak||0)+' 天'; $('#streakChip').classList.toggle('zero',!(STAT.streak>0));
   pushWidget(); scheduleReminder();
   $('#streakChip').style.cursor='pointer'; $('#streakChip').onclick=openHeat;
@@ -4899,6 +4908,35 @@ function toggleHideZh(){
   document.querySelectorAll('.hzbtn').forEach(b=>{ const on=!CFG.hideZh; b.classList.toggle('on',on); b.setAttribute('aria-pressed',on); b.innerHTML=(on?I_EYE:I_EYEX)+'中文'; });
 }
 applyHideZh();
+/* 評分列固定在底部之後，卡片裡取得焦點的東西（鍵盤 Tab、輸入框）若落在它後面就捲出來。
+   依評分列當下的實際高度算（首次提示、判錯一鍵、四鍵高度都不同）。 */
+function studyReveal(t){ const st=$('#study'), ctl=$('#controls'); if(!st||!ctl||st.classList.contains('hidden')||!t||!t.getBoundingClientRect||ctl.contains(t)||!st.contains(t)) return;
+  /* 看得到的範圍＝visualViewport（軟體鍵盤彈出時它會縮小，layout viewport 不變）；下緣再跟固定評分列的上緣取較小的。 */
+  const vv=window.visualViewport, vTop=vv?vv.offsetTop:0, vBot=vv?vv.offsetTop+vv.height:innerHeight;
+  if(st.style.paddingBottom && (!vv || vv.height>=innerHeight-1)) st.style.paddingBottom='';
+  const sticky=(getComputedStyle(ctl).position==='sticky');
+  /* 每一步都重新量：墊空間會壓縮卡片區的留白、改變輸入框的位置，沿用墊之前算的距離會捲過頭（Codex r41）。 */
+  for(let i=0;i<10;i++){
+    const r=t.getBoundingClientRect(), cTop=sticky ? ctl.getBoundingClientRect().top : innerHeight;
+    const bot=(cTop>vTop+60) ? Math.min(cTop,vBot) : vBot;   /* 評分列本身已被鍵盤擋在可見範圍外（或幾乎貼頂）時，不拿它當界線 */
+    const fits=(r.height+22 <= bot-vTop);
+    /* 這一圈要捲多少：放得下 → 下緣進可見範圍、上緣不超出；放不下 → 以露出上緣為準 */
+    let d=0;
+    if(fits){ if(r.bottom > bot-8) d=r.bottom-bot+14; else if(r.top < vTop-0.5) d=r.top-vTop-14; }
+    else if(Math.abs(r.top-vTop-14) > 0.5) d=r.top-vTop-14;
+    if(!d) break;
+    if(d>0){ const room=document.documentElement.scrollHeight-innerHeight-window.scrollY;
+      if(d>room+0.5){ st.style.paddingBottom=Math.ceil((parseFloat(st.style.paddingBottom)||0)+d-room)+'px'; continue; } }   /* 頁面不夠長：先墊、下一圈重量再捲 */
+    else if(window.scrollY<=0) break;                                                    /* 已在最頂端，沒辦法再往上捲 */
+    const y0=window.scrollY; window.scrollBy(0, d); if(Math.abs(window.scrollY-y0)<0.5) break;   /* 捲不動就停，不空轉 */
+  } }
+document.addEventListener('focusin', e=>studyReveal(e.target));
+/* 旋轉、視窗改大小、跨過「矮畫面不固定」的門檻之後，版面排完再檢查一次目前有焦點的元素（Codex r39） */
+let _revealT=0; function studyRevealSoon(){ clearTimeout(_revealT); _revealT=setTimeout(()=>requestAnimationFrame(()=>{ const vv=window.visualViewport, st=$('#study');
+  if(st && st.style.paddingBottom && (!vv || vv.height>=innerHeight-1)) st.style.paddingBottom='';   /* 鍵盤收起來就把墊的空間拿掉 */
+  studyReveal(document.activeElement); }),60); }
+window.addEventListener('resize', studyRevealSoon); window.addEventListener('orientationchange', studyRevealSoon);
+if(window.visualViewport) window.visualViewport.addEventListener('resize', studyRevealSoon);
 appNudgeInit();
 renderHome();
 maybeOnboard();   // 首次啟動引導（老用戶不會看到）
