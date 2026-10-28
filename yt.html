@@ -10,21 +10,24 @@
 // Embedding through this https page gives the player a valid origin. Only plays YouTube's own player.
 // Mobile YouTube ignores the autoplay=1 URL flag, so start playback through the IFrame API once the player is ready.
 // Sentence loop: YouTube's `end` param only applies to the first play, so pressing play again ran the whole video.
-// We don't pass `end`; instead we pause at e and seek back to s, so every press of play repeats just this sentence.
+// The first play keeps `end` (YouTube handles pre-roll ads correctly there). When it ends we seek back to s and arm
+// our own guard, which pauses at e and seeks back to s, so every later press of play repeats just this sentence.
+// The guard stays off until then because ad playback reports its own small currentTime values.
 (function(){
   var q=new URLSearchParams(location.search),v=q.get('v')||'',s=parseInt(q.get('s'),10)||0,e=parseInt(q.get('e'),10)||0;
   var lang=/^[a-z]{2}$/.test(q.get('l')||'')?q.get('l'):'ja';
   if(!/^[A-Za-z0-9_-]{11}$/.test(v))return;
-  s=Math.max(0,s);var clip=e>s,timer=null;
+  s=Math.max(0,s);var clip=e>s,armed=false,timer=null;
   function report(state){try{parent.postMessage({tangoYt:1,v:v,state:state},'*');}catch(_){}}
   function rewind(p){p.pauseVideo();p.seekTo(s,true);p.pauseVideo();}
   function guard(p){
-    if(!clip)return;
+    if(!clip||!armed)return;
     var t=p.getCurrentTime();
     if(t>=e)rewind(p);
   }
   window.onYouTubeIframeAPIReady=function(){
     var vars={start:s,autoplay:1,playsinline:1,cc_load_policy:1,cc_lang_pref:lang,rel:0,origin:location.origin};
+    if(clip)vars.end=e;
     var player=new YT.Player('p',{host:'https://www.youtube-nocookie.com',videoId:v,playerVars:vars,
       events:{
         onReady:function(ev){ev.target.playVideo();report('ready');
@@ -33,11 +36,11 @@
           var p=ev.target;
           if(ev.data===1){
             // Playing from outside the sentence (after the end, or scrubbed before it): jump back to the start.
-            var t=p.getCurrentTime();if(clip&&(t>=e||t<s-1))p.seekTo(s,true);
+            var t=p.getCurrentTime();if(armed&&(t>=e||t<s-1))p.seekTo(s,true);
             if(!timer)timer=setInterval(function(){guard(p);},200);
           }else{
             if(timer){clearInterval(timer);timer=null;}
-            if(ev.data===0&&clip)rewind(p);
+            if(ev.data===0&&clip){rewind(p);armed=true;}
           }
           report(ev.data);
         },
