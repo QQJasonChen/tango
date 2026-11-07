@@ -1,0 +1,1 @@
+window.__RELATED__=window.__RELATED__||{};window.__RELATED__[77]={"7787":[[854,"近義","都可形容面積或範圍大；大きい也說整體尺寸。","W"]]};

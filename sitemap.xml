@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 <url><loc>https://qqjasonchen.github.io/tango/</loc></url>
-<url><loc>https://qqjasonchen.github.io/tango/learn/index.html</loc></url>
+<url><loc>https://qqjasonchen.github.io/tango/learn/</loc></url>
+<url><loc>https://qqjasonchen.github.io/tango/learn/kana/</loc></url>
 <url><loc>https://qqjasonchen.github.io/tango/learn/kana/a-h.html</loc></url>
 <url><loc>https://qqjasonchen.github.io/tango/learn/kana/a-k.html</loc></url>
 <url><loc>https://qqjasonchen.github.io/tango/learn/kana/chi-h.html</loc></url>
@@ -20,7 +21,6 @@
 <url><loc>https://qqjasonchen.github.io/tango/learn/kana/ho-k.html</loc></url>
 <url><loc>https://qqjasonchen.github.io/tango/learn/kana/i-h.html</loc></url>
 <url><loc>https://qqjasonchen.github.io/tango/learn/kana/i-k.html</loc></url>
-<url><loc>https://qqjasonchen.github.io/tango/learn/kana/index.html</loc></url>
 <url><loc>https://qqjasonchen.github.io/tango/learn/kana/ka-h.html</loc></url>
 <url><loc>https://qqjasonchen.github.io/tango/learn/kana/ka-k.html</loc></url>
 <url><loc>https://qqjasonchen.github.io/tango/learn/kana/ke-h.html</loc></url>
@@ -95,6 +95,7 @@
 <url><loc>https://qqjasonchen.github.io/tango/learn/kana/yo-k.html</loc></url>
 <url><loc>https://qqjasonchen.github.io/tango/learn/kana/yu-h.html</loc></url>
 <url><loc>https://qqjasonchen.github.io/tango/learn/kana/yu-k.html</loc></url>
+<url><loc>https://qqjasonchen.github.io/tango/learn/official/</loc></url>
 <url><loc>https://qqjasonchen.github.io/tango/learn/official/book1-n1.html</loc></url>
 <url><loc>https://qqjasonchen.github.io/tango/learn/official/book1-n2.html</loc></url>
 <url><loc>https://qqjasonchen.github.io/tango/learn/official/book1-n3.html</loc></url>
@@ -105,13 +106,12 @@
 <url><loc>https://qqjasonchen.github.io/tango/learn/official/book2-n3.html</loc></url>
 <url><loc>https://qqjasonchen.github.io/tango/learn/official/book2-n4.html</loc></url>
 <url><loc>https://qqjasonchen.github.io/tango/learn/official/book2-n5.html</loc></url>
-<url><loc>https://qqjasonchen.github.io/tango/learn/official/index.html</loc></url>
 <url><loc>https://qqjasonchen.github.io/tango/learn/official/sample-n1.html</loc></url>
 <url><loc>https://qqjasonchen.github.io/tango/learn/official/sample-n2.html</loc></url>
 <url><loc>https://qqjasonchen.github.io/tango/learn/official/sample-n3.html</loc></url>
 <url><loc>https://qqjasonchen.github.io/tango/learn/official/sample-n4.html</loc></url>
 <url><loc>https://qqjasonchen.github.io/tango/learn/official/sample-n5.html</loc></url>
-<url><loc>https://qqjasonchen.github.io/tango/learn/traps/index.html</loc></url>
+<url><loc>https://qqjasonchen.github.io/tango/learn/traps/</loc></url>
 <url><loc>https://qqjasonchen.github.io/tango/learn/traps/t23064.html</loc></url>
 <url><loc>https://qqjasonchen.github.io/tango/learn/traps/t24202.html</loc></url>
 <url><loc>https://qqjasonchen.github.io/tango/learn/traps/t28271.html</loc></url>

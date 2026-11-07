@@ -1,0 +1,1 @@
+window.__RELATED__=window.__RELATED__||{};window.__RELATED__[22]={"2228":[[5654,"相關","落ちる泛指物體落下；降る專指雨雪等從空中降下。","W"]]};

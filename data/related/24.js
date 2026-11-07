@@ -1,0 +1,1 @@
+window.__RELATED__=window.__RELATED__||{};window.__RELATED__[24]={"2480":[[3933,"近義","土曜省略了日；土曜日是完整寫法，意思相同。","J"]]};

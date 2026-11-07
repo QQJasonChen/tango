@@ -1,0 +1,1 @@
+window.__RELATED__=window.__RELATED__||{};window.__RELATED__[64]={"6403":[[841,"反義","浅い指深度小；深い指深度大，也都可形容知識程度。","J"]]};

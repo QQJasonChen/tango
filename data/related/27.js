@@ -1,0 +1,1 @@
+window.__RELATED__=window.__RELATED__||{};window.__RELATED__[27]={"2798":[[1455,"相關","列車涵蓋各種動力的列車；電車是以電力行駛的一類。","W"]]};

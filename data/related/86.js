@@ -1,0 +1,1 @@
+window.__RELATED__=window.__RELATED__||{};window.__RELATED__[86]={"8677":[[7288,"近義","ビーフ多見於西式料理名稱；牛肉是一般食材名稱。","W"]]};
